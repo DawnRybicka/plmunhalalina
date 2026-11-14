@@ -426,6 +426,8 @@
     if (sisPanel) sisPanel.classList.toggle('hidden', !isAdmin);
     const validateBtn = document.getElementById('audit-validate-chain');
     if (validateBtn) validateBtn.classList.toggle('hidden', !isAdmin);
+    const adminTestPanel = document.getElementById('admin-test-panel');
+    if (adminTestPanel) adminTestPanel.classList.toggle('hidden', !isAdmin);
     const adminOnlyFilters = document.getElementById('audit-filters-admin-note');
     if (adminOnlyFilters) adminOnlyFilters.classList.toggle('hidden', isAdmin);
 
@@ -444,6 +446,12 @@
       Array.from(el('audit-filter-action').options).forEach(opt => {
         opt.style.display = '';
       });
+    }
+
+    // Update the "Restore Chain" button enabled state
+    const restoreBtn = document.getElementById('test-restore');
+    if (restoreBtn) {
+      restoreBtn.disabled = !Blockchain.hasTestSnapshot();
     }
 
     el('blockchain-list').innerHTML = chain.map(b => `
@@ -489,6 +497,110 @@
       if (val.length > 80) val = val.slice(0, 77) + '...';
       return `<div><strong>${k}:</strong> ${val}</div>`;
     }).join('');
+  }
+
+  // ---------- Admin Testing Panel: result display ----------
+  function showTestResult(buttonId, result) {
+    const panel = el('admin-test-result');
+    if (!panel) return;
+    if (!result.ok) {
+      panel.className = 'admin-test-result test-fail';
+      panel.innerHTML = `
+        <div class="admin-test-result-title">&#10007; Test Failed to Run</div>
+        <div class="admin-test-result-desc">${result.reason || 'Unknown error.'}</div>
+      `;
+      panel.classList.remove('hidden');
+      toast('Test failed: ' + (result.reason || 'unknown'), 'error');
+      return;
+    }
+    panel.className = 'admin-test-result test-success';
+    const rows = [];
+    if (result.attackType) rows.push(['Attack Type', result.attackType]);
+    if (result.blockIndex !== undefined) rows.push(['Target Block', '#' + result.blockIndex]);
+    if (result.originalHash) rows.push(['Original Hash', result.originalHash.slice(0, 32) + '...']);
+    if (result.newHash) rows.push(['New Hash', result.newHash.slice(0, 32) + '...']);
+    if (result.originalVoterId) rows.push(['Original Voter ID', result.originalVoterId.slice(0, 32) + '...']);
+    if (result.tamperedVoterId) rows.push(['Tampered Voter ID', result.tamperedVoterId.slice(0, 32) + '...']);
+    if (result.declaredTxHash) rows.push(['Declared Tx Hash', result.declaredTxHash.slice(0, 32) + '...']);
+    if (result.expectedTxHash) rows.push(['Expected Tx Hash (actual signature)', result.expectedTxHash.slice(0, 32) + '...']);
+    if (result.previousHash) rows.push(['Previous Hash', result.previousHash.slice(0, 32) + '...']);
+    if (result.expectedPreviousHash) rows.push(['Expected Previous Hash', result.expectedPreviousHash.slice(0, 32) + '...']);
+    if (result.blockHash) rows.push(['Block Hash', result.blockHash.slice(0, 32) + '...']);
+    if (result.reMined !== undefined) rows.push(['Re-Mined', result.reMined ? 'yes (block hash is internally valid, linkage breaks)' : 'no (block hash itself is now invalid)']);
+    if (result.variant) rows.push(['Variant', result.variant]);
+
+    panel.innerHTML = `
+      <div class="admin-test-result-title">&#9888; Attack Executed</div>
+      <div class="admin-test-result-desc">${result.description || ''}</div>
+      ${rows.length > 0 ? `
+        <div class="admin-test-result-rows">
+          ${rows.map(([k, v]) => `
+            <div>
+              <strong>${k}</strong>
+              <span class="mono">${v}</span>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+      <div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--border); font-size: 12.5px; color: var(--text-muted);">
+        <strong>Next step:</strong> Click the <em>Validate Blockchain</em> button above to run the
+        validator. It should now detect this attack and report which check failed.
+      </div>
+    `;
+    panel.classList.remove('hidden');
+    toast('Attack executed: ' + (result.attackType || 'Test') + '. Click Validate Blockchain to verify detection.', 'info', 5000);
+  }
+
+  // ---------- Validation result display ----------
+  function showValidationResult(valid, details) {
+    // Show the result inline above the blockchain list
+    let resultBox = document.getElementById('validation-result-box');
+    if (!resultBox) {
+      // Create it
+      const blockchainCard = el('blockchain-list')?.closest('.card');
+      if (blockchainCard) {
+        resultBox = document.createElement('div');
+        resultBox.id = 'validation-result-box';
+        blockchainCard.querySelector('.card-body').insertBefore(resultBox, el('blockchain-list'));
+      }
+    }
+    if (!resultBox) return;
+
+    if (valid) {
+      resultBox.className = 'validation-result valid';
+      resultBox.innerHTML = `
+        <div class="validation-result-title">&#10003; Blockchain is VALID</div>
+        <div>All checks passed: hash integrity, chain linkage, PoW difficulty, and transaction signatures are all intact.</div>
+      `;
+    } else {
+      const failures = (details && details.failures) || [];
+      resultBox.className = 'validation-result invalid';
+      resultBox.innerHTML = `
+        <div class="validation-result-title">&#10007; Blockchain is INVALID</div>
+        <div>${failures.length} check(s) failed. The attack was detected.</div>
+        ${failures.length > 0 ? `
+          <div class="validation-result-failures">
+            ${failures.map(f => `
+              <div class="validation-failure">
+                <span class="validation-failure-tag">${f.check}</span>
+                ${f.blockIndex !== undefined ? `[Block #${f.blockIndex}] ` : ''}
+                ${f.message || ''}
+                ${f.storedHash ? `<br>&nbsp;&nbsp;&nbsp;&nbsp;<em>stored:</em> ${f.storedHash.slice(0, 40)}...` : ''}
+                ${f.recomputedHash ? `<br>&nbsp;&nbsp;&nbsp;&nbsp;<em>recomputed:</em> ${f.recomputedHash.slice(0, 40)}...` : ''}
+                ${f.expectedPreviousHash ? `<br>&nbsp;&nbsp;&nbsp;&nbsp;<em>expected previous:</em> ${f.expectedPreviousHash.slice(0, 40)}...` : ''}
+                ${f.actualPreviousHash ? `<br>&nbsp;&nbsp;&nbsp;&nbsp;<em>actual previous:</em> ${f.actualPreviousHash.slice(0, 40)}...` : ''}
+                ${f.hash ? `<br>&nbsp;&nbsp;&nbsp;&nbsp;<em>block hash:</em> ${f.hash.slice(0, 40)}...` : ''}
+                ${f.declaredHash ? `<br>&nbsp;&nbsp;&nbsp;&nbsp;<em>declared tx hash:</em> ${f.declaredHash.slice(0, 40)}...` : ''}
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+        <div style="margin-top: 10px; font-size: 12.5px; color: var(--text-muted);">
+          <strong>Recovery:</strong> Use the <em>Restore Chain</em> button in the Admin Testing Panel below
+          to roll back to the pre-attack state.
+        </div>
+      `;
+    }
   }
 
   // ---------- Verify tab ----------
@@ -609,15 +721,81 @@
 
     // Validate chain
     el('audit-validate-chain').addEventListener('click', async () => {
+      const btn = el('audit-validate-chain');
+      btn.disabled = true;
+      btn.textContent = 'Validating...';
       const valid = await Blockchain.isChainValid();
+      const details = Blockchain.getValidationDetails();
+      btn.disabled = false;
+      btn.textContent = 'Validate Blockchain';
       if (valid) {
         AuditTrail.log({ action: 'BLOCKCHAIN_VALID', actor: 'system', timestamp: Date.now() });
         toast('Blockchain validation passed - chain is intact.', 'success');
       } else {
         AuditTrail.log({ action: 'BLOCKCHAIN_INVALID', actor: 'system', timestamp: Date.now() });
-        toast('Blockchain validation FAILED - chain integrity compromised!', 'error');
+        const failCount = details ? details.failures.length : 0;
+        toast(`Blockchain validation FAILED - ${failCount} issue(s) detected!`, 'error', 5000);
       }
+      // Show the validation result panel
+      showValidationResult(valid, details);
       renderAuditTab();
+    });
+
+    // ---------- Admin Testing Panel ----------
+    // Test 1: Block Tampering (no re-mine)
+    el('test-tamper-noremine')?.addEventListener('click', async () => {
+      const result = await Blockchain.testTamperBlock(false);
+      showTestResult('test-tamper-noremine', result);
+      renderAuditTab();
+    });
+
+    // Test 1: Block Tampering (with re-mine)
+    el('test-tamper-remine')?.addEventListener('click', async () => {
+      const result = await Blockchain.testTamperBlock(true);
+      showTestResult('test-tamper-remine', result);
+      renderAuditTab();
+    });
+
+    // Test 2: Unauthorized Transaction
+    el('test-unauth-tx')?.addEventListener('click', async () => {
+      const result = await Blockchain.testUnauthorizedTransaction();
+      showTestResult('test-unauth-tx', result);
+      renderAuditTab();
+    });
+
+    // Test 3: Direct Chain Injection (bad PoW)
+    el('test-inject-bad-pow')?.addEventListener('click', () => {
+      const result = Blockchain.testInjectBlock('bad-pow');
+      showTestResult('test-inject-bad-pow', result);
+      renderAuditTab();
+    });
+
+    // Test 3: Direct Chain Injection (bad linkage)
+    el('test-inject-bad-link')?.addEventListener('click', () => {
+      const result = Blockchain.testInjectBlock('bad-linkage');
+      showTestResult('test-inject-bad-link', result);
+      renderAuditTab();
+    });
+
+    // Restore chain to pre-attack state
+    el('test-restore')?.addEventListener('click', () => {
+      const restored = Blockchain.restoreChain();
+      const statusEl = el('test-restore-status');
+      if (restored) {
+        statusEl.textContent = 'Chain restored successfully.';
+        toast('Chain restored to pre-attack state.', 'success');
+        // Hide the test result panel since the chain is now clean
+        el('admin-test-result')?.classList.add('hidden');
+      } else {
+        statusEl.textContent = 'No snapshot to restore from.';
+        toast('No snapshot to restore from.', 'info');
+      }
+      // Re-validate after restore
+      setTimeout(async () => {
+        const valid = await Blockchain.isChainValid();
+        showValidationResult(valid, Blockchain.getValidationDetails());
+        renderAuditTab();
+      }, 100);
     });
 
     el('audit-clear-filters').addEventListener('click', () => {

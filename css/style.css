@@ -1277,3 +1277,173 @@ form input[type="password"]:focus {
 
 /* Hide elements with .hidden (override) - keep !important from .hidden */
 .hidden { display: none !important; }
+
+/* ============================================================
+   ADMIN TESTING PANEL (audit tab, admin only)
+   ============================================================ */
+.admin-test-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.admin-test-card {
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-test-card h4 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.admin-test-tag {
+  display: inline-block;
+  padding: 1px 6px;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.admin-test-card p {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-soft);
+  line-height: 1.55;
+  flex: 1;
+}
+
+.admin-test-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.admin-test-result {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--info);
+  background: var(--info-bg);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  margin-bottom: 14px;
+  font-size: 13.5px;
+  color: var(--text);
+}
+.admin-test-result.test-success { border-left-color: var(--success); background: var(--primary-lighter); }
+.admin-test-result.test-fail { border-left-color: var(--danger); background: var(--danger-bg); }
+
+.admin-test-result-title {
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.admin-test-result-desc {
+  color: var(--text-soft);
+  margin-bottom: 10px;
+  line-height: 1.55;
+}
+.admin-test-result-rows {
+  font-size: 12.5px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 14px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border-strong);
+}
+.admin-test-result-rows strong {
+  display: block;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+.admin-test-result-rows .mono {
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  word-break: break-all;
+  color: var(--text);
+}
+
+.admin-test-footer {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.admin-test-restore-status {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+/* Validation result display */
+.validation-result {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  font-size: 13px;
+}
+.validation-result.valid {
+  background: var(--primary-lighter);
+  border-color: var(--primary-light);
+  border-left: 4px solid var(--success);
+  color: var(--primary-darker);
+}
+.validation-result.invalid {
+  background: var(--danger-bg);
+  border-color: #fecaca;
+  border-left: 4px solid var(--danger);
+  color: #991b1b;
+}
+.validation-result-title {
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+.validation-result-failures {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed currentColor;
+}
+.validation-failure {
+  font-family: 'Courier New', monospace;
+  font-size: 11.5px;
+  margin-bottom: 4px;
+  word-break: break-word;
+}
+.validation-failure-tag {
+  display: inline-block;
+  padding: 1px 5px;
+  background: rgba(220, 38, 38, 0.15);
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  margin-right: 4px;
+  text-transform: uppercase;
+}

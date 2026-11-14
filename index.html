@@ -253,7 +253,7 @@
         </section>
       </div>
 
-      <!-- Blockchain inspection panel -->
+      <!-- Simulated Blockchain Ledger -->
       <div class="card" style="margin-top: 20px;">
         <div class="card-header">
           <h3>Simulated Blockchain Ledger</h3>
@@ -261,6 +261,71 @@
         </div>
         <div class="card-body">
           <div id="blockchain-list" class="blockchain-list"></div>
+        </div>
+      </div>
+
+      <!-- Admin Testing Panel - ADMIN ONLY -->
+      <div id="admin-test-panel" class="card" style="margin-top: 20px;">
+        <div class="card-header">
+          <h3>Admin Testing Panel &mdash; Blockchain Attack Simulation <span class="admin-tag">Admin Only</span></h3>
+          <span class="badge badge-green">Testing</span>
+        </div>
+        <div class="card-body">
+          <p style="margin: 0 0 16px; color: var(--text-soft); font-size: 14px;">
+            This panel lets an admin simulate three classic blockchain attacks to verify that the
+            <strong>Validate Blockchain</strong> tool (above) correctly detects them. Each test
+            takes a snapshot of the chain before the attack so you can <strong>Restore Chain</strong>
+            afterward and run another test. After running an attack, click <em>Validate Blockchain</em>
+            (above) to see the validator catch it.
+          </p>
+
+          <div class="admin-test-grid">
+            <!-- Test 1: Block Tampering -->
+            <div class="admin-test-card">
+              <h4>Test 1 &middot; Block Tampering <span class="admin-test-tag">Hash Integrity</span></h4>
+              <p>Modifies the voter ID inside an existing block's transaction. The block's stored
+                 hash no longer matches the (tampered) contents - the validator's recomputedHash
+                 check should fail.</p>
+              <div class="admin-test-actions">
+                <button id="test-tamper-noremine" class="btn btn-secondary btn-sm">Run (no re-mine)</button>
+                <button id="test-tamper-remine" class="btn btn-secondary btn-sm">Run (with re-mine)</button>
+              </div>
+            </div>
+
+            <!-- Test 2: Unauthorized Transaction -->
+            <div class="admin-test-card">
+              <h4>Test 2 &middot; Unauthorized Transaction <span class="admin-test-tag">Signature Verification</span></h4>
+              <p>Mines a new block containing a transaction whose declared transactionHash
+                 does NOT match the hash of the actual payload - simulating a forged vote
+                 under another student's identity. The validator's signature check should fail.</p>
+              <div class="admin-test-actions">
+                <button id="test-unauth-tx" class="btn btn-secondary btn-sm">Run Attack</button>
+              </div>
+            </div>
+
+            <!-- Test 3: Direct Chain Injection -->
+            <div class="admin-test-card">
+              <h4>Test 3 &middot; Direct Chain Injection <span class="admin-test-tag">Consensus Bypass</span></h4>
+              <p>Pushes a fake block directly onto the chain array without going through the
+                 mining process. The fake block has an invalid PoW hash (doesn't start with
+                 "000") and/or a broken previousHash linkage. The validator should catch it.</p>
+              <div class="admin-test-actions">
+                <button id="test-inject-bad-pow" class="btn btn-secondary btn-sm">Run (bad PoW)</button>
+                <button id="test-inject-bad-link" class="btn btn-secondary btn-sm">Run (bad linkage)</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Result display -->
+          <div id="admin-test-result" class="admin-test-result hidden">
+            <!-- populated dynamically -->
+          </div>
+
+          <!-- Restore button (always visible if a snapshot exists) -->
+          <div class="admin-test-footer">
+            <button id="test-restore" class="btn btn-outline btn-sm" disabled>Restore Chain to Pre-Attack State</button>
+            <span id="test-restore-status" class="admin-test-restore-status"></span>
+          </div>
         </div>
       </div>
 
