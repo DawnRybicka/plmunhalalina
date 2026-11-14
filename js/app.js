@@ -36,6 +36,14 @@
     ul.innerHTML = samples.map(s =>
       `<li><strong>${s.student_id}</strong> &mdash; PIN <strong>${s.pin}</strong> (${s.program}-${s.year}${s.section})</li>`
     ).join('');
+
+    // Also list the admin / COMELEC sample credentials (separate section in the login page)
+    const adminUl = el('admin-credentials');
+    if (adminUl) {
+      adminUl.innerHTML = SIS.ADMIN_USERS.map(a =>
+        `<li><strong>${a.admin_id}</strong> &mdash; PIN <strong>${a.pin}</strong> (${a.role} &mdash; ${a.full_name})</li>`
+      ).join('');
+    }
   }
 
   // ---------- Tab routing ----------
@@ -201,10 +209,11 @@
     el('receipt-modal').classList.remove('hidden');
     el('receipt-modal').setAttribute('aria-hidden', 'false');
 
-    // Copy button
+    // Export receipt as .txt file (replaces the old "Copy Receipt" button)
     el('receipt-copy-btn').onclick = () => {
-      const text = `HALALina Receipt\nCode: ${result.receiptCode}\nTx Hash: ${result.transactionHash}\nBlock #: ${result.blockIndex}\nBlock Hash: ${result.blockHash}`;
-      navigator.clipboard?.writeText(text).then(() => toast('Receipt copied to clipboard!', 'success'));
+      const receiptText = buildReceiptText(result);
+      downloadTextFile(`halalina-receipt-${result.receiptCode.split('-')[0]}.txt`, receiptText);
+      toast('Receipt exported as .txt file.', 'success');
     };
     el('receipt-verify-btn').onclick = () => {
       closeReceiptModal();
@@ -218,7 +227,64 @@
     el('receipt-modal').setAttribute('aria-hidden', 'true');
   }
 
+  // ---------- Build the .txt receipt content ----------
+  function buildReceiptText(result) {
+    const voteTime = new Date(result.voteTimestamp).toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+    return [
+      '==============================================================',
+      '  HALALina - PLMun Transparent Voting System',
+      '  OFFICIAL VOTE RECEIPT',
+      '==============================================================',
+      '',
+      `Receipt Code    : ${result.receiptCode}`,
+      `Transaction Hash: ${result.transactionHash}`,
+      `Block Index     : #${result.blockIndex}`,
+      `Block Hash      : ${result.blockHash}`,
+      `Vote Time       : ${voteTime}`,
+      '',
+      '--------------------------------------------------------------',
+      '  HOW TO VERIFY YOUR VOTE',
+      '--------------------------------------------------------------',
+      '1. Go to the "Verify Vote" tab in the HALALina web app.',
+      '2. Paste the Receipt Code above into the input field.',
+      '3. Click "Verify" - the system will search the simulated',
+      '   blockchain and confirm that your vote was recorded.',
+      '',
+      'Your candidate selections were end-to-end encrypted (AES-GCM)',
+      'before being written to the blockchain, so this receipt cannot',
+      'reveal who you voted for. Only the SHA-256 hash of your student',
+      'ID and the encrypted ballot payload were recorded on-chain,',
+      'preserving your anonymity.',
+      '',
+      'Keep this receipt private. Anyone with this code can verify',
+      'that a vote was cast, but cannot link it to you.',
+      '',
+      '==============================================================',
+      `Generated: ${new Date().toISOString().replace('T', ' ').slice(0, 19)} UTC`,
+      '=============================================================='
+    ].join('\n');
+  }
+
+  // ---------- Trigger a .txt file download ----------
+  function downloadTextFile(filename, content) {
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    // Revoke the object URL after a short delay so the download has time to start
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
   // ---------- Candidates tab ----------
+  // Per the user's request, this tab now shows only the candidate's
+  // platform and credentials (leadership experience + achievements).
+  // Credibility scores, ratings, and GPA/GWA have been removed.
+  // The card layout is fixed: each card has the same set of sections
+  // in the same order so the alignment is consistent across cards.
   function renderCandidates() {
     const container = el('candidates-container');
     container.innerHTML = CANDIDATES.map(c => `
@@ -229,45 +295,22 @@
             <h3 class="candidate-full-title">${c.full_name}</h3>
             <p class="candidate-full-sub">${c.running_position} &middot; ${c.party_affiliation}</p>
             <p class="candidate-program">${c.program} &middot; Year ${c.year_section}</p>
-            <span class="verified-badge">&#10003; Verified by ${c.credibility.verified_by}</span>
+            <span class="verified-badge">&#10003; Verified by PLMun COMELEC + Faculty Verification Committee</span>
           </div>
         </div>
 
-        <div class="section-title">Platform</div>
+        <div class="section-title section-title-platform">Platform</div>
         <ul class="platform-list">
           ${c.platform.map(p => `<li>${p}</li>`).join('')}
         </ul>
 
-        <div class="section-title">Credentials</div>
-        <p style="margin:0 0 6px; font-size:13px;"><strong>Education:</strong> ${c.credentials.education}</p>
-        <p style="margin:0 0 6px; font-size:13px;"><strong>GPA:</strong> ${c.credentials.gpa}</p>
+        <div class="section-title section-title-credentials">Credentials</div>
         <ul class="credentials-list">
           ${c.credentials.leadership_experience.map(x => `<li>${x}</li>`).join('')}
           ${c.credentials.achievements.map(x => `<li>${x}</li>`).join('')}
         </ul>
-
-        <div class="section-title">Credibility Score</div>
-        <div class="credibility-score">
-          <div class="credibility-score-big">${c.credibility.overall.toFixed(1)}</div>
-          <div class="credibility-score-label">out of 100 &mdash; Verified by ${c.credibility.verified_by}</div>
-        </div>
-        ${credibilityBar('Academic', c.credibility.academic_score)}
-        ${credibilityBar('Leadership', c.credibility.leadership_score)}
-        ${credibilityBar('Integrity', c.credibility.integrity_score)}
-        ${credibilityBar('Community', c.credibility.community_score)}
       </div>
     `).join('');
-  }
-  function credibilityBar(label, value) {
-    return `
-      <div class="credibility-bar">
-        <span class="credibility-bar-label">${label}</span>
-        <div class="credibility-bar-track">
-          <div class="credibility-bar-fill" style="width:${value}%"></div>
-        </div>
-        <span class="credibility-bar-value">${value}</span>
-      </div>
-    `;
   }
 
   // ---------- Audit tab (live tally + audit trail + blockchain) ----------
@@ -323,29 +366,86 @@
     }
     tallyContainer.innerHTML = html || '<p style="color:var(--text-muted); font-size:13px;">No votes cast yet.</p>';
 
-    // 3. Audit log
+    // 3. Audit log - filter by role
+    // Students only see "public" entries (VOTE_VERIFIED, VOTE_NOT_FOUND, SYSTEM_ACTION).
+    // Admins see everything (including LOGIN_SUCCESS, LOGIN_FAILED, VOTE_CAST,
+    // BLOCKCHAIN_VALID, etc.) - the "System audit trail".
     const actionFilter = el('audit-filter-action').value;
     const countFilter = el('audit-filter-count').value;
-    const logs = AuditTrail.getAll(actionFilter ? { action: actionFilter } : null);
+    const session = Auth.getSession();
+    const role = (session && session.role) || 'student';
+    const filter = {};
+    if (actionFilter) filter.action = actionFilter;
+    if (role === 'student') filter.role = 'student';
+    const logs = AuditTrail.getAll(filter);
     const limit = countFilter === 'all' ? logs.length : parseInt(countFilter, 10);
     const visible = logs.slice(0, limit);
+    const isAdmin = role === 'admin';
     el('audit-log-list').innerHTML = visible.length === 0
-      ? '<p style="padding:14px; color:var(--text-muted); font-size:13px; text-align:center;">No audit log entries yet.</p>'
-      : visible.map(l => `
+      ? `<p style="padding:14px; color:var(--text-muted); font-size:13px; text-align:center;">
+         ${isAdmin ? 'No audit log entries yet.' : 'No public audit log entries yet. Login events, votes, and blockchain validations are visible only to admin accounts.'}
+       </p>`
+      : visible.map(l => {
+        const isSystemEntry = (l.visibility || AuditTrail.visibilityOf(l.action)) === 'system';
+        return `
         <div class="audit-log-entry">
           <div class="audit-log-time">${AuditTrail.formatTimestamp(l.timestamp)}</div>
           <div>
-            <div class="audit-log-action action-${l.action}">${AuditTrail.label(l.action)}</div>
+            <div class="audit-log-action action-${l.action}">
+              ${AuditTrail.label(l.action)}
+              ${isAdmin && isSystemEntry ? '<span class="audit-log-sys-tag" title="System audit trail - admin only">[system]</span>' : ''}
+            </div>
             <div class="audit-log-actor">${formatActor(l.actor)}</div>
           </div>
           <div class="audit-log-details">${formatDetails(l.details)}</div>
         </div>
-      `).join('');
+      `;
+      }).join('');
 
     // 4. Blockchain list
     const chain = Blockchain.getChain();
     const stats = Blockchain.getStats();
-    el('blockchain-stats').textContent = `${chain.length} blocks · ${stats.transactionCount} txs · difficulty ${stats.difficulty}`;
+    // Badge with tooltip explaining the stats:
+    //   "2 blocks"  = total blocks mined (genesis + 1 vote = 2)
+    //   "1 txs"     = total transactions recorded (1 vote cast)
+    //   "difficulty 3" = proof-of-work difficulty (hash must start with '000')
+    const statsBadge = el('blockchain-stats');
+    statsBadge.textContent = `${chain.length} blocks · ${stats.transactionCount} txs · difficulty ${stats.difficulty}`;
+    statsBadge.title =
+      'Simulated blockchain stats:\n' +
+      `  - Blocks: ${chain.length}  (genesis block + one block per vote)\n` +
+      `  - Transactions: ${stats.transactionCount}  (one transaction per vote cast)\n` +
+      `  - Difficulty: ${stats.difficulty}  (proof-of-work: each block hash must start with "${'0'.repeat(stats.difficulty)}")\n` +
+      '  - Algorithm: SHA-256 (browser Web Crypto API)\n' +
+      '  - Library: NONE - this is a custom pure-JavaScript blockchain\n' +
+      '    built specifically for this project (see js/blockchain.js).';
+
+    // Show the Mock SIS panel + Validate Blockchain button only to admins
+    // (re-use the role variable already computed above; don't redeclare)
+    const sisPanel = document.getElementById('sis-info-panel');
+    if (sisPanel) sisPanel.classList.toggle('hidden', !isAdmin);
+    const validateBtn = document.getElementById('audit-validate-chain');
+    if (validateBtn) validateBtn.classList.toggle('hidden', !isAdmin);
+    const adminOnlyFilters = document.getElementById('audit-filters-admin-note');
+    if (adminOnlyFilters) adminOnlyFilters.classList.toggle('hidden', isAdmin);
+
+    // For students: also hide the action-filter dropdown options that
+    // correspond to admin-only actions (LOGIN_SUCCESS, VOTE_CAST, etc.)
+    if (!isAdmin) {
+      Array.from(el('audit-filter-action').options).forEach(opt => {
+        const v = opt.value;
+        if (v && AuditTrail.visibilityOf(v) === 'system') {
+          opt.style.display = 'none';
+        } else {
+          opt.style.display = '';
+        }
+      });
+    } else {
+      Array.from(el('audit-filter-action').options).forEach(opt => {
+        opt.style.display = '';
+      });
+    }
+
     el('blockchain-list').innerHTML = chain.map(b => `
       <div class="blockchain-block ${b.index === 0 ? 'genesis' : ''}">
         <div class="block-row"><span class="block-label">Block #</span><span class="block-value"><strong>${b.index}</strong>${b.index === 0 ? ' (GENESIS)' : ''}</span></div>
@@ -460,7 +560,12 @@
         toast(result.reason, 'error');
         return;
       }
-      toast(`Welcome, ${result.student.first_name}!`, 'success');
+      // Welcome message differs for admin vs student
+      if (result.role === 'admin') {
+        toast(`Welcome, ${result.admin.full_name} (Admin)!`, 'success');
+      } else {
+        toast(`Welcome, ${result.student.first_name}!`, 'success');
+      }
       showApp();
     });
 
@@ -539,8 +644,33 @@
     el('user-name').textContent = session.full_name;
     el('user-meta').textContent = `${session.program} - ${session.year_section}`;
 
+    // Show role badge in topbar (Student / Admin)
+    const roleBadge = el('user-role-badge');
+    if (roleBadge) {
+      if (session.role === 'admin') {
+        roleBadge.textContent = 'ADMIN';
+        roleBadge.className = 'role-badge role-admin';
+        roleBadge.title = 'Administrator account - can see system audit trails, Mock SIS, and blockchain validation';
+      } else {
+        roleBadge.textContent = 'STUDENT';
+        roleBadge.className = 'role-badge role-student';
+        roleBadge.title = 'Student voter account - can vote, view live tally, and verify own vote';
+      }
+    }
+
+    // Hide the "Vote" tab for admins (they don't vote)
+    const voteTabLink = document.querySelector('.nav-link[data-tab="vote"]');
+    if (voteTabLink) {
+      voteTabLink.style.display = session.role === 'admin' ? 'none' : '';
+    }
+
+    // For admin users, default to the audit tab (where they do most of their work)
     renderElectionStatus();
-    switchTab('vote');
+    if (session.role === 'admin') {
+      switchTab('audit');
+    } else {
+      switchTab('vote');
+    }
   }
 
   // ---------- Initialization ----------

@@ -6,6 +6,11 @@
 // backed by sql/schema.sql + sql/seed.sql (authoritative SQL
 // definition) running alongside js/sis-data.js (runtime mirror).
 //
+// Also supports admin/COMELEC login via separate admin accounts
+// (IDs starting with '99' instead of '23'). Admin sessions have
+// elevated privileges: they can see LOGIN_*, VOTE_CAST, and
+// BLOCKCHAIN_VALID audit log entries plus the Mock SIS panel.
+//
 // Issues a session token (stored in sessionStorage) and records
 // login/logout events in the Audit Trail. To preserve voter
 // anonymity per the user's request, audit entries NEVER log
@@ -69,9 +74,72 @@ const Auth = (function () {
     return { ok: true, student };
   }
 
-  // -------- Login --------
+  // -------- Lookup admin/COMELEC --------
+  // Admin IDs start with '99'. They have no eligibility check and bypass
+  // the "one person, one vote" rule (they don't vote at all).
+  function lookupAdmin(adminId, pin) {
+    const aid = (adminId || '').trim();
+    const p = (pin || '').trim();
+
+    if (!/^99\d{6}$/.test(aid)) {
+      return { ok: false, reason: 'Admin IDs must start with 99.' };
+    }
+    if (!/^\d{4}$/.test(p)) {
+      return { ok: false, reason: 'PIN must be exactly 4 digits.' };
+    }
+    const admin = SIS.selectAdminByCredentials(aid, p);
+    if (!admin) {
+      return { ok: false, reason: 'Admin ID not found, or PIN is incorrect.' };
+    }
+    return { ok: true, admin };
+  }
+
+  // -------- Login (auto-detects student vs admin based on ID prefix) --------
   async function login(studentId, pin) {
-    const result = lookupStudent(studentId, pin);
+    const sid = (studentId || '').trim();
+    const isAdminAttempt = /^99\d{6}$/.test(sid);
+
+    // ---- Admin login path ----
+    if (isAdminAttempt) {
+      const adminResult = lookupAdmin(sid, pin);
+      if (!adminResult.ok) {
+        AuditTrail.log({
+          action: 'LOGIN_FAILED',
+          actor: 'anonymous',
+          details: { reason: adminResult.reason },
+          timestamp: Date.now()
+        });
+        return adminResult;
+      }
+      const admin = adminResult.admin;
+      const token = CryptoUtils.sessionToken();
+      // Hash the admin ID for the audit trail, just like a student ID.
+      const hashedAdminId = await CryptoUtils.anonymizeStudentId(admin.admin_id, SALT);
+      const session = {
+        token,
+        student_id: admin.admin_id,             // admin ID stored in session (not in audit)
+        hashed_voter_id: hashedAdminId,
+        full_name: admin.full_name,
+        program: admin.role,                    // 'ADMIN' or 'COMELEC'
+        year_section: admin.department,
+        role: 'admin',                          // <-- new field
+        login_at: Date.now()
+      };
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+      rememberHash(admin.admin_id, hashedAdminId);
+
+      // Log admin login as SYSTEM_ACTION (admin events are not student-affecting)
+      AuditTrail.log({
+        action: 'LOGIN_SUCCESS',
+        actor: hashedAdminId,                    // <-- still anonymous pseudonym
+        details: { role: 'admin' },              // <-- we DO record the role though
+        timestamp: Date.now()
+      });
+      return { ok: true, session, admin, role: 'admin' };
+    }
+
+    // ---- Student login path ----
+    const result = lookupStudent(sid, pin);
     if (!result.ok) {
       // Log failed attempt - DO NOT include the student ID
       AuditTrail.log({
@@ -109,6 +177,7 @@ const Auth = (function () {
       full_name: `${student.first_name} ${student.middle_initial}. ${student.last_name}`,
       program: student.program,
       year_section: `${student.year}-${student.section}`,
+      role: 'student',                          // <-- new field
       login_at: Date.now()
     };
 
@@ -119,11 +188,11 @@ const Auth = (function () {
     AuditTrail.log({
       action: 'LOGIN_SUCCESS',
       actor: hashedVoterId,            // <-- anonymous pseudonym (no raw student ID)
-      details: {},                     // <-- empty: no session token fragments either
+      details: { role: 'student' },    // <-- we DO record the role (so the UI can show "Student")
       timestamp: Date.now()
     });
 
-    return { ok: true, session, student };
+    return { ok: true, session, student, role: 'student' };
   }
 
   // -------- Get current session --------
@@ -158,11 +227,25 @@ const Auth = (function () {
     return !!getSession();
   }
 
+  // -------- Check if the current user is an admin --------
+  function isAdmin() {
+    const session = getSession();
+    return !!(session && session.role === 'admin');
+  }
+
+  // -------- Check if the current user is a student --------
+  function isStudent() {
+    const session = getSession();
+    return !!(session && session.role === 'student');
+  }
+
   return {
     login,
     logout,
     getSession,
     isLoggedIn,
+    isAdmin,
+    isStudent,
     SALT
   };
 })();

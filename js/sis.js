@@ -86,6 +86,46 @@ const SIS = (function () {
     return MOCK_SIS;
   }
 
+  // ---- Admin accounts ----
+  // In production these would live in a separate ADMIN_USER table with
+  // bcrypt-hashed passwords. For this demo they are stored here in
+  // plaintext for transparency. Admins use the same login form as
+  // students (Student ID + PIN) but their IDs start with '99' instead
+  // of '23' to distinguish them from regular student accounts.
+  //
+  // Equivalent SQL (would live in a separate admin_users.sql):
+  //   CREATE TABLE ADMIN_USERS (
+  //     admin_id     VARCHAR(8)  PRIMARY KEY,         -- format: 99XXXXXX
+  //     full_name    VARCHAR(64) NOT NULL,
+  //     role         ENUM('ADMIN','COMELEC') NOT NULL,
+  //     pin          CHAR(4)     NOT NULL,
+  //     created_at   TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP
+  //   );
+  const ADMIN_USERS = Object.freeze([
+    {
+      admin_id: '99000001',
+      full_name: 'Dr. Maria Elena Santos',
+      role: 'ADMIN',
+      pin: '1234',
+      email: 'admin@plmun.edu.ph',
+      department: 'College of IT and Computer Studies (CITCS) - Election Administrator'
+    },
+    {
+      admin_id: '99000002',
+      full_name: 'Prof. Ronaldo Reyes',
+      role: 'COMELEC',
+      pin: '5678',
+      email: 'comelec@plmun.edu.ph',
+      department: 'PLMun COMELEC Chairperson'
+    }
+  ]);
+
+  function selectAdminByCredentials(adminId, pin) {
+    const aid = String(adminId || '').trim();
+    const p = String(pin || '').trim();
+    return ADMIN_USERS.find(a => a.admin_id === aid && a.pin === p) || null;
+  }
+
   // ---- SELECT * FROM MOCK_STUDENT_SIS WHERE student_id = ? ----
   function selectByStudentId(studentId) {
     const sid = String(studentId || '').trim();
@@ -215,6 +255,8 @@ const SIS = (function () {
 
   return {
     SCHEMA,
+    ADMIN_USERS,
+    selectAdminByCredentials,
     selectByStudentId,
     verifyCredentials,
     selectEligible,

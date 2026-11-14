@@ -52,13 +52,18 @@
       </form>
 
       <div class="login-help">
-        <p><strong>Sample login credentials:</strong></p>
+        <p><strong>Sample student credentials:</strong></p>
         <ul id="sample-credentials"></ul>
+        <p><strong>Admin / COMELEC credentials:</strong> <span class="login-help-hint">(see system audit trails + Mock SIS)</span></p>
+        <ul id="admin-credentials"></ul>
         <p class="login-note">
-          The Mock SIS contains 220 synthetic student records. PINs are 4-digit
-          codes generated for this demo. Voter identities are hashed with SHA-256
-          before being recorded on the blockchain, so the public ledger cannot
-          be reverse-engineered to identify voters.
+          The Mock SIS contains 220 synthetic student records. Student IDs start
+          with <code>23</code>, admin IDs start with <code>99</code>. PINs are
+          4-digit codes generated for this demo. Voter identities are hashed
+          with SHA-256 before being recorded on the blockchain, so the public
+          ledger cannot be reverse-engineered to identify voters. Admin
+          accounts have elevated privileges (system audit trails, Mock SIS
+          panel, blockchain validation) and cannot cast votes.
         </p>
       </div>
     </div>
@@ -88,6 +93,7 @@
         <a href="#verify" class="nav-link" data-tab="verify">Verify Vote</a>
       </nav>
       <div class="topbar-user">
+        <span id="user-role-badge" class="role-badge role-student" title="Student voter account">STUDENT</span>
         <div class="user-info">
           <div id="user-name" class="user-name"></div>
           <div id="user-meta" class="user-meta"></div>
@@ -141,7 +147,7 @@
             <!-- populated dynamically -->
           </div>
           <div class="modal-footer">
-            <button class="btn btn-outline" id="receipt-copy-btn">Copy Receipt</button>
+            <button class="btn btn-outline" id="receipt-copy-btn">Export as .txt</button>
             <button class="btn btn-primary" id="receipt-verify-btn">Verify Vote</button>
           </div>
         </div>
@@ -151,9 +157,9 @@
     <!-- ===================== CANDIDATES TAB ===================== -->
     <main id="tab-candidates" class="tab-content">
       <div class="page-header">
-        <h2>Candidate Credibility</h2>
-        <p>Each candidate's profile, platform, credentials, and credibility scores
-           are verified by the PLMun COMELEC and Faculty Verification Committee.</p>
+        <h2>Candidates</h2>
+        <p>Each candidate's platform and credentials are verified by the
+           PLMun COMELEC and Faculty Verification Committee.</p>
       </div>
       <div id="candidates-container" class="candidates-grid"></div>
     </main>
@@ -233,9 +239,14 @@
                     <option value="all">All</option>
                   </select>
                 </label>
-                <button id="audit-validate-chain" class="btn btn-outline btn-sm">Validate Blockchain</button>
+                <button id="audit-validate-chain" class="btn btn-outline btn-sm" title="Admin only - re-hash every block and verify the chain is intact">Validate Blockchain</button>
                 <button id="audit-clear-filters" class="btn btn-outline btn-sm">Clear</button>
               </div>
+              <p id="audit-filters-admin-note" class="audit-filters-admin-note hidden">
+                <strong>You are viewing the public audit trail.</strong>
+                Login events, vote casts, and blockchain validation entries
+                are visible only to admin accounts.
+              </p>
               <div id="audit-log-list" class="audit-log-list"></div>
             </div>
           </div>
@@ -253,10 +264,10 @@
         </div>
       </div>
 
-      <!-- Mock SIS / SQL info panel -->
-      <div class="card" style="margin-top: 20px;">
+      <!-- Mock SIS / SQL info panel - ADMIN ONLY -->
+      <div id="sis-info-panel" class="card" style="margin-top: 20px;">
         <div class="card-header">
-          <h3>Mock Student Information System (SIS) &mdash; SQL Backend</h3>
+          <h3>Mock Student Information System (SIS) &mdash; SQL Backend <span class="admin-tag">Admin Only</span></h3>
           <span class="badge badge-green">SQL + JS</span>
         </div>
         <div class="card-body">
