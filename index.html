@@ -252,6 +252,60 @@
           <div id="blockchain-list" class="blockchain-list"></div>
         </div>
       </div>
+
+      <!-- Mock SIS / SQL info panel -->
+      <div class="card" style="margin-top: 20px;">
+        <div class="card-header">
+          <h3>Mock Student Information System (SIS) &mdash; SQL Backend</h3>
+          <span class="badge badge-green">SQL + JS</span>
+        </div>
+        <div class="card-body">
+          <p style="margin: 0 0 12px; color: var(--text-soft); font-size: 14px;">
+            The Mock SIS is backed by both a real <strong>MySQL-compatible SQL schema</strong>
+            (<code>sql/schema.sql</code> + <code>sql/seed.sql</code>) and an in-memory
+            <strong>JavaScript mirror</strong> (<code>js/sis-data.js</code>) so the
+            system runs entirely client-side on GitHub Pages while still being
+            governed by a proper SQL schema. Both files contain the same 220
+            synthetic student records. In a production deployment you would
+            replace the JS shim with a <code>fetch()</code> call to a Node +
+            Express + MySQL backend that runs the same SQL queries shown below.
+          </p>
+          <div id="sis-info-grid" class="sis-info-grid">
+            <div class="sis-info-stat">
+              <span class="sis-info-stat-label">Total Students</span>
+              <span id="sis-total" class="sis-info-stat-value">0</span>
+            </div>
+            <div class="sis-info-stat">
+              <span class="sis-info-stat-label">Eligible</span>
+              <span id="sis-eligible" class="sis-info-stat-value">0</span>
+            </div>
+            <div class="sis-info-stat">
+              <span class="sis-info-stat-label">Ineligible</span>
+              <span id="sis-ineligible" class="sis-info-stat-value">0</span>
+            </div>
+            <div class="sis-info-stat">
+              <span class="sis-info-stat-label">Tables</span>
+              <span id="sis-tables" class="sis-info-stat-value">4</span>
+            </div>
+          </div>
+          <div class="sis-info-sql">
+            <div class="sis-info-sql-title">Equivalent SQL queries run by the app:</div>
+            <pre class="sis-info-sql-block">-- Login verification (Auth.login)
+SELECT * FROM MOCK_STUDENT_SIS
+WHERE student_id = '<sid>' AND pin = '<pin>'
+  AND eligibility_status = 'ELIGIBLE';
+
+-- Eligibility check (SIS.hasVoted)
+SELECT has_voted, transaction_hash FROM VOTER_LOG
+WHERE student_id = '<sid>';
+
+-- Live tally (admin view)
+SELECT COUNT(*) AS votes FROM VOTER_LOG
+JOIN transactions ON VOTER_LOG.transaction_hash = transactions.transaction_hash
+WHERE transactions.candidate_id = '<cand_id>';</pre>
+          </div>
+        </div>
+      </div>
     </main>
 
     <!-- ===================== VERIFY VOTE TAB ===================== -->
@@ -304,6 +358,7 @@
   <!-- ============================================================ -->
   <script src="js/crypto-utils.js"></script>
   <script src="js/sis-data.js"></script>
+  <script src="js/sis.js"></script>
   <script src="js/candidates.js"></script>
   <script src="js/voter-log.js"></script>
   <script src="js/audit.js"></script>

@@ -47,9 +47,10 @@ const Voting = (function () {
 
     // 2. Double-check the voter hasn't voted yet (off-chain metadata)
     if (VoterLog.hasVoted(session.student_id)) {
+      // Log WITHOUT the student ID - use the hashed voter pseudonym
       AuditTrail.log({
         action: 'SYSTEM_ACTION',
-        actor: session.student_id,
+        actor: session.hashed_voter_id,
         details: { note: 'Double-vote attempt blocked' },
         timestamp: Date.now()
       });
@@ -99,15 +100,15 @@ const Voting = (function () {
     // 8. Generate the human-readable receipt
     const receiptCode = await CryptoUtils.generateReceipt(transactionHash + ballot.voter_hashed_id);
 
-    // 9. Log the event
+    // 9. Log the event - keep VOTE_CAST but NEVER include the student ID
+    // or the receipt code (which could be linked back). The audit log records
+    // only that a vote was cast, by which anonymous voter pseudonym, and on
+    // which block. The voter keeps their receipt private.
     AuditTrail.log({
       action: 'VOTE_CAST',
-      actor: session.student_id,
+      actor: ballot.voter_hashed_id,        // <-- anonymous pseudonym
       details: {
-        transaction_hash: transactionHash,
-        receipt_code: receiptCode,
-        block_index: block.index,
-        block_hash: block.hash
+        block_index: block.index            // <-- only the block index, nothing PII
       },
       timestamp: Date.now()
     });
@@ -144,7 +145,9 @@ const Voting = (function () {
       AuditTrail.log({
         action: 'VOTE_NOT_FOUND',
         actor: 'anonymous',
-        details: { query },
+        // Do NOT echo the user's query back into the audit log - it could
+        // be a receipt code that should stay private to the voter.
+        details: {},
         timestamp: Date.now()
       });
       return { ok: false, reason: 'No matching vote found for the provided receipt / hash.' };

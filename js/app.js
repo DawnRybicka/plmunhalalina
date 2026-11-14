@@ -274,12 +274,22 @@
   async function renderAuditTab() {
     // 1. Stats
     const totalVotes = Blockchain.getAllTransactions().length;
-    const eligibleVoters = SIS_STATS.eligible_students;
+    // Use the SIS query layer to compute eligible voters (SQL-style)
+    const sisStats = SIS.stats();
+    const eligibleVoters = sisStats.eligible_students;
     const turnout = eligibleVoters > 0 ? ((totalVotes / eligibleVoters) * 100).toFixed(1) : '0.0';
     el('stat-total-votes').textContent = totalVotes;
     el('stat-eligible-voters').textContent = eligibleVoters;
     el('stat-turnout').textContent = turnout + '%';
     el('tally-update-time').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+
+    // Populate the SIS / SQL info panel
+    if (el('sis-total')) {
+      el('sis-total').textContent = sisStats.total_students;
+      el('sis-eligible').textContent = sisStats.eligible_students;
+      el('sis-ineligible').textContent = sisStats.ineligible_students;
+      el('sis-tables').textContent = Object.keys(SIS.SCHEMA.tables).length;
+    }
 
     // 2. Live tally (decrypt all ballots - admin/audit-only view)
     const tallies = await Voting.computeLiveTally();
@@ -326,7 +336,7 @@
           <div class="audit-log-time">${AuditTrail.formatTimestamp(l.timestamp)}</div>
           <div>
             <div class="audit-log-action action-${l.action}">${AuditTrail.label(l.action)}</div>
-            <div class="audit-log-actor">${l.actor === 'anonymous' ? 'anonymous' : 'Student ' + l.actor}</div>
+            <div class="audit-log-actor">${formatActor(l.actor)}</div>
           </div>
           <div class="audit-log-details">${formatDetails(l.details)}</div>
         </div>
@@ -357,6 +367,19 @@
         `).join('') : ''}
       </div>
     `).join('');
+  }
+
+  function formatActor(actor) {
+    if (!actor || actor === 'anonymous' || actor === 'system') {
+      return actor || 'anonymous';
+    }
+    // Actor is a SHA-256 hashed voter ID (a 64-char hex string).
+    // Show it as an abbreviated pseudonym so it cannot be mistaken for a
+    // student ID, and so different pseudonyms are visually distinguishable.
+    if (/^[a-f0-9]{64}$/i.test(actor)) {
+      return 'voter_' + actor.slice(0, 8);
+    }
+    return actor;
   }
 
   function formatDetails(details) {

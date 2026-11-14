@@ -1058,6 +1058,65 @@ form input[type="password"]:focus {
 #verify-form label { display: block; margin-bottom: 6px; }
 #verify-form button { width: 100%; }
 
+/* ============================================================
+   SIS / SQL INFO PANEL (audit tab)
+   ============================================================ */
+.sis-info-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin: 14px 0;
+}
+.sis-info-stat {
+  background: var(--bg-soft);
+  padding: 12px;
+  border-radius: var(--radius);
+  text-align: center;
+  border: 1px solid var(--border);
+}
+.sis-info-stat-label {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.sis-info-stat-value {
+  display: block;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--primary-darker);
+  line-height: 1;
+}
+.sis-info-sql-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 8px;
+}
+.sis-info-sql-block {
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  overflow-x: auto;
+  margin: 0;
+}
+.sis-info-sql-block code,
+.sis-info-sql-block .kw { color: #86efac; }
+.sis-info-sql-block .com { color: #94a3b8; }
+
+@media (max-width: 720px) {
+  .sis-info-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
 .verify-success-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
