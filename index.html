@@ -6,7 +6,8 @@
   <title>HALALina - PLMun Transparent Voting System</title>
   <meta name="description" content="HALALina: A Web-based Transparent Voting System using simulated blockchain technology for PLMun Student Council Elections." />
   <link rel="stylesheet" href="css/style.css" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' fill='%2316a34a' rx='4'/><text x='12' y='17' font-size='14' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold'>H</text></svg>" />
+  <link rel="icon" href="assets/plmun-logo.png" />
+  <link rel="apple-touch-icon" href="assets/plmun-logo.png" />
 </head>
 <body>
   <!-- ============================================================ -->
@@ -15,7 +16,7 @@
   <div id="login-page" class="login-page">
     <div class="login-card">
       <div class="login-brand">
-        <div class="brand-mark">H</div>
+        <img class="brand-mark" src="assets/plmun-logo.png" alt="PLMun Logo" />
         <div>
           <h1>HALALina</h1>
           <p class="brand-subtitle">PLMun Transparent Voting System</p>
@@ -26,13 +27,13 @@
         A Web-based Transparent Voting System using Simulated Blockchain Technology
       </div>
 
-      <form id="login-form" autocomplete="off">
+      <form id="login-form" autocomplete="off" novalidate>
         <label for="student-id">Student ID</label>
         <input
           id="student-id"
           type="text"
           inputmode="numeric"
-          pattern="23\d{6}"
+          pattern="(23|99)\d{6}"
           maxlength="8"
           placeholder="23XXXXXX"
           required
@@ -42,30 +43,14 @@
           id="student-pin"
           type="password"
           inputmode="numeric"
-          pattern="\d{4}"
-          maxlength="4"
-          placeholder="4-digit PIN"
+          pattern="\d{6}"
+          maxlength="6"
+          placeholder="6-digit PIN"
           required
         />
         <button type="submit" class="btn btn-primary btn-block">Sign In</button>
         <p id="login-error" class="form-error" hidden></p>
       </form>
-
-      <div class="login-help">
-        <p><strong>Sample student credentials:</strong></p>
-        <ul id="sample-credentials"></ul>
-        <p><strong>Admin / COMELEC credentials:</strong> <span class="login-help-hint">(see system audit trails + Mock SIS)</span></p>
-        <ul id="admin-credentials"></ul>
-        <p class="login-note">
-          The Mock SIS contains 220 synthetic student records. Student IDs start
-          with <code>23</code>, admin IDs start with <code>99</code>. PINs are
-          4-digit codes generated for this demo. Voter identities are hashed
-          with SHA-256 before being recorded on the blockchain, so the public
-          ledger cannot be reverse-engineered to identify voters. Admin
-          accounts have elevated privileges (system audit trails, Mock SIS
-          panel, blockchain validation) and cannot cast votes.
-        </p>
-      </div>
     </div>
     <footer class="login-footer">
       Capstone Project - Pamantasan ng Lungsod ng Muntinlupa (PLMun) - College of
@@ -80,7 +65,7 @@
     <!-- Top navigation bar -->
     <header class="topbar">
       <div class="topbar-brand">
-        <div class="brand-mark brand-mark-sm">H</div>
+        <img class="brand-mark brand-mark-sm" src="assets/plmun-logo.png" alt="PLMun Logo" />
         <div>
           <span class="topbar-title">HALALina</span>
           <span class="topbar-subtitle">PLMun Transparent Voting System</span>
@@ -161,6 +146,73 @@
         <p>Each candidate's platform and credentials are verified by the
            PLMun COMELEC and Faculty Verification Committee.</p>
       </div>
+
+      <!-- Admin tool for pushing candidates - ADMIN ONLY -->
+      <div id="admin-candidates-panel" class="card" style="margin-bottom: 24px;">
+        <div class="card-header">
+          <h3>Admin Tool &mdash; Push Candidate <span class="admin-tag">Admin Only</span></h3>
+          <span class="badge badge-green">Manage</span>
+        </div>
+        <div class="card-body">
+          <p style="margin: 0 0 14px; color: var(--text-soft); font-size: 13.5px;">
+            Add a new candidate to the ballot. The candidate will appear in the grid below
+            and on the Vote tab. Use the <em>Platform</em> and <em>Credentials</em> fields
+            with one item per line. New candidates are stored in your browser's
+            <code>localStorage</code> and persist across page refreshes; the original 12
+            candidates cannot be removed (they are part of the source code).
+          </p>
+          <form id="add-candidate-form" autocomplete="off">
+            <div class="add-candidate-grid">
+              <label>
+                Full Name <span class="req">*</span>
+                <input id="new-cand-name" type="text" required placeholder="Juan Dela Cruz" />
+              </label>
+              <label>
+                Position <span class="req">*</span>
+                <select id="new-cand-position" required>
+                  <option value="">-- Select position --</option>
+                  <option value="President">President</option>
+                  <option value="Vice President">Vice President</option>
+                  <option value="Secretary">Secretary</option>
+                  <option value="Treasurer">Treasurer</option>
+                  <option value="Auditor">Auditor</option>
+                  <option value="Public Relations Officer (PRO)">Public Relations Officer (PRO)</option>
+                </select>
+              </label>
+              <label>
+                Party Affiliation <span class="req">*</span>
+                <input id="new-cand-party" type="text" required placeholder="Independent" />
+              </label>
+              <label>
+                Program &amp; Year/Section
+                <input id="new-cand-program" type="text" placeholder="BSIT &middot; Year 4-A" />
+              </label>
+              <label class="full-width">
+                Platform <span class="req">*</span> <span class="field-hint">(one item per line)</span>
+                <textarea id="new-cand-platform" rows="3" required placeholder="Push for transparent student fund utilization.&#10;Establish a digital grievance portal.&#10;Modernize the campus election system."></textarea>
+              </label>
+              <label class="full-width">
+                Credentials <span class="req">*</span> <span class="field-hint">(one item per line - leadership, achievements, awards)</span>
+                <textarea id="new-cand-credentials" rows="4" required placeholder="BSIT Society President (2024-2025)&#10;Lead Organizer, PLMun IT Week 2025&#10;Champion, PLMun Capstone Hackathon 2025&#10;Dean's Lister, 4 consecutive semesters"></textarea>
+              </label>
+            </div>
+            <div class="add-candidate-actions">
+              <button type="submit" class="btn btn-primary">Add Candidate</button>
+              <button type="button" id="add-candidate-clear" class="btn btn-outline">Clear Form</button>
+              <span id="add-candidate-status" class="add-candidate-status"></span>
+            </div>
+          </form>
+
+          <!-- List of admin-added candidates (with remove buttons) -->
+          <div id="added-candidates-section" class="added-candidates-section hidden">
+            <h4 style="margin: 18px 0 8px; font-size: 13px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em;">
+              Admin-Added Candidates <span id="added-candidates-count" class="badge" style="margin-left: 6px;">0</span>
+            </h4>
+            <div id="added-candidates-list" class="added-candidates-list"></div>
+          </div>
+        </div>
+      </div>
+
       <div id="candidates-container" class="candidates-grid"></div>
     </main>
 
@@ -242,21 +294,16 @@
                 <button id="audit-validate-chain" class="btn btn-outline btn-sm" title="Admin only - re-hash every block and verify the chain is intact">Validate Blockchain</button>
                 <button id="audit-clear-filters" class="btn btn-outline btn-sm">Clear</button>
               </div>
-              <p id="audit-filters-admin-note" class="audit-filters-admin-note hidden">
-                <strong>You are viewing the public audit trail.</strong>
-                Login events, vote casts, and blockchain validation entries
-                are visible only to admin accounts.
-              </p>
               <div id="audit-log-list" class="audit-log-list"></div>
             </div>
           </div>
         </section>
       </div>
 
-      <!-- Simulated Blockchain Ledger -->
+      <!-- Blockchain Ledger -->
       <div class="card" style="margin-top: 20px;">
         <div class="card-header">
-          <h3>Simulated Blockchain Ledger</h3>
+          <h3>Blockchain Ledger</h3>
           <span id="blockchain-stats" class="badge"></span>
         </div>
         <div class="card-body">

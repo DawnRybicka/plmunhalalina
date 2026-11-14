@@ -33,7 +33,7 @@ CREATE TABLE MOCK_STUDENT_SIS (
   year               TINYINT       NOT NULL  COMMENT '1-4',
   section            CHAR(1)       NOT NULL  COMMENT 'A-D',
   email              VARCHAR(128)  NOT NULL,
-  pin                CHAR(4)       NOT NULL  COMMENT 'SHA-256 hash of PIN in production',
+  pin                CHAR(6)       NOT NULL  COMMENT 'SHA-256 hash of PIN in production',
   eligibility_status ENUM('ELIGIBLE','INELIGIBLE') NOT NULL DEFAULT 'ELIGIBLE',
   has_voted          BOOLEAN       NOT NULL DEFAULT FALSE,
   vote_hash          CHAR(64)      NULL     COMMENT 'tx hash after voting',

@@ -59,8 +59,8 @@ const Auth = (function () {
     if (!/^23\d{6}$/.test(sid)) {
       return { ok: false, reason: 'Student ID must be in the format 23XXXXXX (8 digits, starting with 23).' };
     }
-    if (!/^\d{4}$/.test(p)) {
-      return { ok: false, reason: 'PIN must be exactly 4 digits.' };
+    if (!/^\d{6}$/.test(p)) {
+      return { ok: false, reason: 'PIN must be exactly 6 digits.' };
     }
 
     // Use the SIS query layer (SQL-style) instead of touching MOCK_SIS directly
@@ -84,8 +84,8 @@ const Auth = (function () {
     if (!/^99\d{6}$/.test(aid)) {
       return { ok: false, reason: 'Admin IDs must start with 99.' };
     }
-    if (!/^\d{4}$/.test(p)) {
-      return { ok: false, reason: 'PIN must be exactly 4 digits.' };
+    if (!/^\d{6}$/.test(p)) {
+      return { ok: false, reason: 'PIN must be exactly 6 digits.' };
     }
     const admin = SIS.selectAdminByCredentials(aid, p);
     if (!admin) {
@@ -97,6 +97,22 @@ const Auth = (function () {
   // -------- Login (auto-detects student vs admin based on ID prefix) --------
   async function login(studentId, pin) {
     const sid = (studentId || '').trim();
+    const p = (pin || '').trim();
+
+    // Pre-validate the ID format: must be 8 digits starting with 23 or 99.
+    // The HTML form already restricts input to (23|99)\d{6} via the
+    // pattern attribute, but we double-check here in case the form is
+    // submitted without browser validation (e.g. via JS).
+    if (!/^(23|99)\d{6}$/.test(sid)) {
+      return {
+        ok: false,
+        reason: 'ID must be 8 digits starting with 23 (student) or 99 (admin).'
+      };
+    }
+    if (!/^\d{6}$/.test(p)) {
+      return { ok: false, reason: 'PIN must be exactly 6 digits.' };
+    }
+
     const isAdminAttempt = /^99\d{6}$/.test(sid);
 
     // ---- Admin login path ----
@@ -156,19 +172,27 @@ const Auth = (function () {
     // Hash the student ID once for use as an anonymous pseudonym
     const hashedVoterId = await CryptoUtils.anonymizeStudentId(student.student_id, SALT);
 
-    // Check if student has already voted (off-chain VOTER_LOG equivalent)
-    if (VoterLog.hasVoted(student.student_id)) {
-      // Log rejection using the anonymous pseudonym, NOT the student ID
+    // Check if student has already voted (off-chain VOTER_LOG equivalent).
+    // IMPORTANT: We do NOT reject the login if they have already voted.
+    // The student is still allowed to log back in so they can:
+    //   - View the live tally
+    //   - Verify their vote (paste receipt into the Verify Vote tab)
+    //   - Browse candidates and audit trail
+    // The "one person, one vote" rule is enforced when they try to CAST
+    // a vote, not at login time. The Vote tab will show an "already voted"
+    // message instead of the ballot, and the Voting.castVote() function
+    // rejects any second vote attempt.
+    const hasAlreadyVoted = VoterLog.hasVoted(student.student_id);
+    if (hasAlreadyVoted) {
       AuditTrail.log({
-        action: 'LOGIN_REJECTED_ALREADY_VOTED',
+        action: 'LOGIN_SUCCESS',
         actor: hashedVoterId,           // <-- anonymous pseudonym
-        details: {},
+        details: { role: 'student', has_voted: true },
         timestamp: Date.now()
       });
-      return { ok: false, reason: 'You have already cast your vote in this election. Each student may vote only once.' };
     }
 
-    // Create session
+    // Create session (whether or not they've already voted)
     const token = CryptoUtils.sessionToken();
     const session = {
       token,
@@ -178,19 +202,22 @@ const Auth = (function () {
       program: student.program,
       year_section: `${student.year}-${student.section}`,
       role: 'student',                          // <-- new field
+      has_voted: hasAlreadyVoted,               // <-- so the UI knows to show "already voted"
       login_at: Date.now()
     };
 
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
     rememberHash(student.student_id, hashedVoterId);
 
-    // Log the successful login using the anonymous pseudonym only
-    AuditTrail.log({
-      action: 'LOGIN_SUCCESS',
-      actor: hashedVoterId,            // <-- anonymous pseudonym (no raw student ID)
-      details: { role: 'student' },    // <-- we DO record the role (so the UI can show "Student")
-      timestamp: Date.now()
-    });
+    // Log the successful login (if not already logged above for the has_voted case)
+    if (!hasAlreadyVoted) {
+      AuditTrail.log({
+        action: 'LOGIN_SUCCESS',
+        actor: hashedVoterId,            // <-- anonymous pseudonym (no raw student ID)
+        details: { role: 'student' },
+        timestamp: Date.now()
+      });
+    }
 
     return { ok: true, session, student, role: 'student' };
   }

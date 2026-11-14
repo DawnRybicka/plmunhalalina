@@ -98,7 +98,7 @@ const SIS = (function () {
   //     admin_id     VARCHAR(8)  PRIMARY KEY,         -- format: 99XXXXXX
   //     full_name    VARCHAR(64) NOT NULL,
   //     role         ENUM('ADMIN','COMELEC') NOT NULL,
-  //     pin          CHAR(4)     NOT NULL,
+  //     pin          CHAR(6)     NOT NULL,
   //     created_at   TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP
   //   );
   const ADMIN_USERS = Object.freeze([
@@ -106,7 +106,7 @@ const SIS = (function () {
       admin_id: '99000001',
       full_name: 'Dr. Maria Elena Santos',
       role: 'ADMIN',
-      pin: '1234',
+      pin: '123456',
       email: 'admin@plmun.edu.ph',
       department: 'College of IT and Computer Studies (CITCS) - Election Administrator'
     },
@@ -114,7 +114,7 @@ const SIS = (function () {
       admin_id: '99000002',
       full_name: 'Prof. Ronaldo Reyes',
       role: 'COMELEC',
-      pin: '5678',
+      pin: '567890',
       email: 'comelec@plmun.edu.ph',
       department: 'PLMun COMELEC Chairperson'
     }

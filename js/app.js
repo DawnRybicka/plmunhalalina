@@ -26,24 +26,13 @@
   }
 
   // ---------- Sample credentials for the login page ----------
+  // The login page no longer shows sample credentials in the UI - the
+  // user has chosen to keep them private. This function is kept as a
+  // no-op so the existing init() call doesn't break.
   function renderSampleCredentials() {
-    const ul = el('sample-credentials');
-    if (!ul) return;
-    // Pick a few representative sample credentials from the Mock SIS
-    const samples = MOCK_SIS
-      .filter(s => s.eligibility_status === 'ELIGIBLE')
-      .slice(0, 5);
-    ul.innerHTML = samples.map(s =>
-      `<li><strong>${s.student_id}</strong> &mdash; PIN <strong>${s.pin}</strong> (${s.program}-${s.year}${s.section})</li>`
-    ).join('');
-
-    // Also list the admin / COMELEC sample credentials (separate section in the login page)
-    const adminUl = el('admin-credentials');
-    if (adminUl) {
-      adminUl.innerHTML = SIS.ADMIN_USERS.map(a =>
-        `<li><strong>${a.admin_id}</strong> &mdash; PIN <strong>${a.pin}</strong> (${a.role} &mdash; ${a.full_name})</li>`
-      ).join('');
-    }
+    // No-op: credentials are not shown on the login page anymore.
+    // The credentials list (admin accounts + 220 student accounts) is
+    // delivered separately to the election administrator.
   }
 
   // ---------- Tab routing ----------
@@ -63,7 +52,10 @@
         renderBallot(session);
       }
     }
-    if (name === 'candidates') renderCandidates();
+    if (name === 'candidates') {
+      renderCandidates();
+      renderAdminCandidatesPanel();
+    }
   }
 
   // ---------- Render the election status banner ----------
@@ -93,7 +85,9 @@
     const positions = ELECTION_INFO.positions;
     let html = '';
     for (const position of positions) {
-      const cands = CANDIDATES.filter(c => c.running_position === position);
+      const cands = (typeof CandidatesManager !== 'undefined')
+        ? CandidatesManager.getByPosition(position)
+        : CANDIDATES.filter(c => c.running_position === position);
       if (cands.length === 0) continue;
       html += `
         <div class="position-group" data-position="${position}">
@@ -287,7 +281,11 @@
   // in the same order so the alignment is consistent across cards.
   function renderCandidates() {
     const container = el('candidates-container');
-    container.innerHTML = CANDIDATES.map(c => `
+    // Use the CandidatesManager so admin-added candidates appear too
+    const allCandidates = (typeof CandidatesManager !== 'undefined')
+      ? CandidatesManager.getAll()
+      : CANDIDATES;
+    container.innerHTML = allCandidates.map(c => `
       <div class="candidate-full-card">
         <div class="candidate-full-header">
           <div class="candidate-avatar" style="background:${c.photo_color}; width:60px; height:60px; font-size:22px;">${c.photo_initials}</div>
@@ -311,6 +309,128 @@
         </ul>
       </div>
     `).join('');
+  }
+
+  // ---------- Admin Candidates Panel (admin only) ----------
+  function renderAdminCandidatesPanel() {
+    const panel = el('admin-candidates-panel');
+    if (!panel) return;
+    const isAdmin = Auth.isAdmin();
+    panel.classList.toggle('hidden', !isAdmin);
+    if (!isAdmin) return;
+    // Render the list of admin-added candidates with remove buttons
+    renderAddedCandidatesList();
+  }
+
+  function renderAddedCandidatesList() {
+    const section = el('added-candidates-section');
+    const listEl = el('added-candidates-list');
+    const countEl = el('added-candidates-count');
+    if (!section || !listEl || !countEl) return;
+    const added = (typeof CandidatesManager !== 'undefined') ? CandidatesManager.getAdded() : [];
+    if (added.length === 0) {
+      section.classList.add('hidden');
+      return;
+    }
+    section.classList.remove('hidden');
+    countEl.textContent = added.length;
+    listEl.innerHTML = added.map(c => `
+      <div class="added-candidate-row">
+        <span class="added-candidate-name">${escapeHtml(c.full_name)}</span>
+        <span class="added-candidate-meta">${c.running_position} &middot; ${c.party_affiliation} &middot; ${c.candidate_id}</span>
+        <button class="added-candidate-remove" data-candidate-id="${c.candidate_id}">Remove</button>
+      </div>
+    `).join('');
+
+    // Wire up the remove buttons
+    listEl.querySelectorAll('.added-candidate-remove').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.candidateId;
+        const result = CandidatesManager.removeCandidate(id);
+        const status = el('add-candidate-status');
+        if (result.ok) {
+          if (status) {
+            status.textContent = `Removed candidate ${id}.`;
+            status.className = 'add-candidate-status success';
+          }
+          toast(`Removed candidate ${id}.`, 'success');
+          renderCandidates();
+          renderAddedCandidatesList();
+        } else {
+          if (status) {
+            status.textContent = result.reason;
+            status.className = 'add-candidate-status error';
+          }
+          toast(result.reason, 'error');
+        }
+      });
+    });
+  }
+
+  function escapeHtml(s) {
+    return String(s || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function wireAdminCandidatesForm() {
+    const form = el('add-candidate-form');
+    if (!form) return;
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = {
+        full_name: el('new-cand-name').value,
+        running_position: el('new-cand-position').value,
+        party_affiliation: el('new-cand-party').value,
+        program: el('new-cand-program').value,
+        year_section: '',  // parsed from program input below
+        platform: el('new-cand-platform').value,
+        credentials: el('new-cand-credentials').value
+      };
+      // Parse "BSIT · Year 4-A" form if the user provided it that way
+      if (input.program) {
+        const m = input.program.match(/^(.+?)\s*[·&middot;]\s*Year\s*(.+)$/i);
+        if (m) {
+          input.program = m[1].trim();
+          input.year_section = m[2].trim();
+        }
+      }
+      const result = CandidatesManager.addCandidate(input);
+      const status = el('add-candidate-status');
+      if (result.ok) {
+        if (status) {
+          status.textContent = `Added candidate ${result.candidate.candidate_id} - ${result.candidate.full_name} (${result.candidate.running_position}).`;
+          status.className = 'add-candidate-status success';
+        }
+        toast(`Candidate added: ${result.candidate.full_name}`, 'success');
+        // Reset the form
+        form.reset();
+        // Re-render the candidates grid + the added list
+        renderCandidates();
+        renderAddedCandidatesList();
+      } else {
+        if (status) {
+          status.textContent = result.reason;
+          status.className = 'add-candidate-status error';
+        }
+        toast(result.reason, 'error');
+      }
+    });
+
+    const clearBtn = el('add-candidate-clear');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        form.reset();
+        const status = el('add-candidate-status');
+        if (status) {
+          status.textContent = 'Form cleared.';
+          status.className = 'add-candidate-status';
+        }
+      });
+    }
   }
 
   // ---------- Audit tab (live tally + audit trail + blockchain) ----------
@@ -339,7 +459,9 @@
     const tallyContainer = el('tally-by-position');
     let html = '';
     for (const position of ELECTION_INFO.positions) {
-      const cands = CANDIDATES.filter(c => c.running_position === position);
+      const cands = (typeof CandidatesManager !== 'undefined')
+        ? CandidatesManager.getByPosition(position)
+        : CANDIDATES.filter(c => c.running_position === position);
       if (cands.length === 0) continue;
       // Compute total votes for this position
       const positionTotal = cands.reduce((sum, c) => sum + (tallies[c.candidate_id] || 0), 0);
@@ -383,7 +505,7 @@
     const isAdmin = role === 'admin';
     el('audit-log-list').innerHTML = visible.length === 0
       ? `<p style="padding:14px; color:var(--text-muted); font-size:13px; text-align:center;">
-         ${isAdmin ? 'No audit log entries yet.' : 'No public audit log entries yet. Login events, votes, and blockchain validations are visible only to admin accounts.'}
+         No audit log entries yet.
        </p>`
       : visible.map(l => {
         const isSystemEntry = (l.visibility || AuditTrail.visibilityOf(l.action)) === 'system';
@@ -428,8 +550,6 @@
     if (validateBtn) validateBtn.classList.toggle('hidden', !isAdmin);
     const adminTestPanel = document.getElementById('admin-test-panel');
     if (adminTestPanel) adminTestPanel.classList.toggle('hidden', !isAdmin);
-    const adminOnlyFilters = document.getElementById('audit-filters-admin-note');
-    if (adminOnlyFilters) adminOnlyFilters.classList.toggle('hidden', isAdmin);
 
     // For students: also hide the action-filter dropdown options that
     // correspond to admin-only actions (LOGIN_SUCCESS, VOTE_CAST, etc.)
@@ -675,6 +795,9 @@
       // Welcome message differs for admin vs student
       if (result.role === 'admin') {
         toast(`Welcome, ${result.admin.full_name} (Admin)!`, 'success');
+      } else if (result.session && result.session.has_voted) {
+        // Student has already voted - they're logging back in to verify
+        toast(`Welcome back, ${result.student.first_name}! Your vote is already recorded. Go to "Verify Vote" to check it.`, 'info', 6000);
       } else {
         toast(`Welcome, ${result.student.first_name}!`, 'success');
       }
@@ -858,6 +981,7 @@
 
     renderSampleCredentials();
     wireEvents();
+    wireAdminCandidatesForm();
 
     // Auto-login if session exists
     if (Auth.isLoggedIn()) {

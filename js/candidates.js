@@ -465,13 +465,162 @@ const ELECTION_INFO = Object.freeze({
   positions: ["President", "Vice President", "Secretary", "Treasurer", "Auditor", "Public Relations Officer (PRO)"]
 });
 
+// =============================================================
+// HALALina - Candidates Manager
+// Allows admins to push new candidates at runtime. New candidates
+// are stored in localStorage (key: halalina_added_candidates_v1)
+// and merged with the original CANDIDATES list whenever the
+// candidates grid or ballot is rendered.
+// =============================================================
+
+const CandidatesManager = (function () {
+  const STORAGE_KEY = 'halalina_added_candidates_v1';
+
+  // ---- Avatar color palette (cycles through) ----
+  const AVATAR_COLORS = ['#16a34a', '#0ea5e9', '#9333ea', '#dc2626', '#d97706', '#0891b2', '#65a30d', '#c026d3'];
+
+  // ---- Load added candidates from localStorage ----
+  function loadAdded() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  // ---- Save added candidates to localStorage ----
+  function saveAdded(list) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  }
+
+  // ---- Get all candidates (original + added) ----
+  function getAll() {
+    return CANDIDATES.concat(loadAdded());
+  }
+
+  // ---- Get candidates filtered by position ----
+  function getByPosition(position) {
+    return getAll().filter(c => c.running_position === position);
+  }
+
+  // ---- Add a new candidate ----
+  // Returns { ok, candidate, reason }
+  function addCandidate(input) {
+    // Validate required fields
+    if (!input.full_name || !input.full_name.trim()) {
+      return { ok: false, reason: 'Full name is required.' };
+    }
+    if (!input.running_position || !input.running_position.trim()) {
+      return { ok: false, reason: 'Position is required.' };
+    }
+    if (!input.party_affiliation || !input.party_affiliation.trim()) {
+      return { ok: false, reason: 'Party affiliation is required.' };
+    }
+
+    // Generate a unique candidate ID
+    const all = getAll();
+    let nextId = all.length + 1;
+    let candidateId;
+    do {
+      candidateId = 'C' + String(nextId).padStart(3, '0');
+      nextId++;
+    } while (all.some(c => c.candidate_id === candidateId));
+
+    // Parse platform and credentials from textarea input (one per line)
+    const platform = (input.platform || '')
+      .split('\n')
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+    if (platform.length === 0) {
+      return { ok: false, reason: 'At least one platform item is required.' };
+    }
+
+    const credentials = (input.credentials || '')
+      .split('\n')
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+    if (credentials.length === 0) {
+      return { ok: false, reason: 'At least one credential is required.' };
+    }
+
+    // Generate initials from the full name
+    const nameParts = input.full_name.trim().split(/\s+/);
+    const initials = nameParts
+      .slice(0, 2)
+      .map(p => p.charAt(0).toUpperCase())
+      .join('');
+
+    // Pick a color from the palette based on candidate count
+    const color = AVATAR_COLORS[all.length % AVATAR_COLORS.length];
+
+    const candidate = {
+      candidate_id: candidateId,
+      full_name: input.full_name.trim(),
+      running_position: input.running_position.trim(),
+      party_affiliation: input.party_affiliation.trim(),
+      program: input.program || 'N/A',
+      year_section: input.year_section || 'N/A',
+      photo_initials: initials,
+      photo_color: color,
+      platform: platform,
+      credentials: {
+        leadership_experience: credentials.slice(0, Math.ceil(credentials.length / 2)),
+        achievements: credentials.slice(Math.ceil(credentials.length / 2))
+      },
+      credibility: {
+        academic_score: 0,
+        leadership_score: 0,
+        integrity_score: 0,
+        community_score: 0,
+        overall: 0,
+        verified_by: 'Admin-added (not yet verified by PLMun COMELEC)'
+      },
+      _admin_added: true,
+      _added_at: Date.now()
+    };
+
+    const list = loadAdded();
+    list.push(candidate);
+    saveAdded(list);
+
+    return { ok: true, candidate };
+  }
+
+  // ---- Remove an admin-added candidate by ID ----
+  function removeCandidate(candidateId) {
+    const list = loadAdded();
+    const filtered = list.filter(c => c.candidate_id !== candidateId);
+    if (filtered.length === list.length) {
+      return { ok: false, reason: 'Candidate not found, or it is one of the original candidates (cannot be removed).' };
+    }
+    saveAdded(filtered);
+    return { ok: true };
+  }
+
+  // ---- Get just the admin-added candidates (for the management UI) ----
+  function getAdded() {
+    return loadAdded();
+  }
+
+  return {
+    getAll,
+    getByPosition,
+    addCandidate,
+    removeCandidate,
+    getAdded,
+    ELECTION_INFO
+  };
+})();
+
 // Expose globally (browser & Node)
 if (typeof globalThis !== 'undefined') {
   globalThis.CANDIDATES = CANDIDATES;
   globalThis.ELECTION_INFO = ELECTION_INFO;
+  globalThis.CandidatesManager = CandidatesManager;
 }
 
 // CommonJS
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { CANDIDATES, ELECTION_INFO };
+  module.exports = { CANDIDATES, ELECTION_INFO, CandidatesManager };
 }

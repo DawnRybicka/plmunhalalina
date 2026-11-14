@@ -23,9 +23,13 @@ const Voting = (function () {
       throw new Error('No candidate selected.');
     }
     // Validate: one candidate per position
+    // Use CandidatesManager so admin-added candidates are also recognized
+    const allCandidates = (typeof CandidatesManager !== 'undefined')
+      ? CandidatesManager.getAll()
+      : CANDIDATES;
     const positions = {};
     for (const candId of selectedCandidateIds) {
-      const cand = CANDIDATES.find(c => c.candidate_id === candId);
+      const cand = allCandidates.find(c => c.candidate_id === candId);
       if (!cand) throw new Error(`Invalid candidate ID: ${candId}`);
       if (positions[cand.running_position]) {
         throw new Error(`You can only vote for one candidate per position (${cand.running_position}).`);

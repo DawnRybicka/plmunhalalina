@@ -104,21 +104,27 @@ a:hover { color: var(--primary-darker); text-decoration: underline; }
 .brand-mark {
   width: 56px;
   height: 56px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-darker) 100%);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 800;
-  font-size: 28px;
-  box-shadow: 0 4px 10px rgba(22, 163, 74, 0.3);
+  border-radius: 50%;
+  /* Logo is a circular badge (PNG with transparent corners) so we
+     don't tint the background. A subtle white border helps it pop
+     on the soft-green login background. */
+  background: white;
+  border: 2px solid var(--primary-light);
+  object-fit: contain;
+  padding: 2px;
+  box-shadow: 0 4px 10px rgba(22, 163, 74, 0.18);
+  /* Override the old text-based styling (font-weight, color: white)
+     since we're now using an <img> element. */
+  font-weight: 400;
+  color: inherit;
+  display: inline-block;
 }
 .brand-mark-sm {
   width: 40px;
   height: 40px;
-  font-size: 20px;
-  border-radius: 8px;
+  border-radius: 50%;
+  padding: 2px;
+  box-shadow: 0 2px 6px rgba(22, 163, 74, 0.15);
 }
 .login-brand h1 {
   margin: 0;
@@ -670,17 +676,26 @@ form input[type="password"]:focus {
 
 /* ============================================================
    CANDIDATES GRID
-   The card layout is intentionally fixed: every card has the same
-   set of sections (header, platform, credentials) in the same
-   order, so cards align across rows regardless of content length.
-   Credibility scores, ratings, and GPA/GWA have been removed per
-   the user's request - only platform + credentials are shown.
+   All cards in the same row have EQUAL HEIGHT. This is achieved
+   with CSS grid (grid-auto-rows: 1fr makes each row's height
+   equal to the tallest card in that row) + flexbox (each card is
+   a flex column where the credentials list grows to fill the
+   remaining space, so cards with shorter credential lists still
+   stretch to match the tallest one in the row).
    ============================================================ */
 .candidates-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  /* 3 columns at desktop, 2 at medium, 1 at mobile - all rows equal height */
+  grid-template-columns: repeat(3, 1fr);
   gap: 20px;
-  align-items: start; /* cards align at the top */
+  align-items: stretch;       /* cards stretch to fill row height */
+}
+
+@media (max-width: 1100px) {
+  .candidates-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 720px) {
+  .candidates-grid { grid-template-columns: 1fr; }
 }
 
 .candidate-full-card {
@@ -692,21 +707,24 @@ form input[type="password"]:focus {
   transition: all var(--transition);
   display: flex;
   flex-direction: column;
+  /* height: 100% lets the card stretch to the row height set by the grid */
+  height: 100%;
 }
 .candidate-full-card:hover {
   box-shadow: var(--shadow-md);
   transform: translateY(-2px);
 }
 
-/* Header: fixed-height avatar + flex name area, so every header is the same height */
+/* Header: fixed-height so the section titles below align across cards */
 .candidate-full-header {
   display: flex;
   gap: 14px;
   align-items: flex-start;
-  min-height: 80px;
+  min-height: 110px;
   margin-bottom: 14px;
   padding-bottom: 14px;
   border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;             /* header takes its natural height, doesn't grow */
 }
 .candidate-full-header > .candidate-avatar {
   flex: 0 0 60px;          /* fixed width */
@@ -717,6 +735,9 @@ form input[type="password"]:focus {
 .candidate-full-header > div {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 .candidate-full-title {
   font-size: 17px;
@@ -724,11 +745,18 @@ form input[type="password"]:focus {
   margin: 0 0 4px;
   color: var(--text);
   line-height: 1.3;
+  /* Allow up to 2 lines for long names - fixed height so the
+     position/party line below is at the same y on every card. */
+  min-height: 44px;          /* ~2 lines at 17px / 1.3 line-height */
 }
 .candidate-full-sub {
   font-size: 13px;
   color: var(--text-muted);
   margin: 0 0 4px;
+  /* Give it a fixed min-height so 2-line party/position text doesn't
+     push the rest of the card down. */
+  min-height: 36px;          /* ~2 lines at 13px / 1.4 line-height */
+  line-height: 1.4;
 }
 .candidate-program {
   font-size: 12.5px;
@@ -736,7 +764,7 @@ form input[type="password"]:focus {
   margin: 0 0 6px;
 }
 
-/* Section titles are pinned so all cards' "Platform" titles align */
+/* Section titles - pinned so all cards' "Platform" titles align */
 .section-title {
   font-size: 11px;
   font-weight: 700;
@@ -744,11 +772,10 @@ form input[type="password"]:focus {
   text-transform: uppercase;
   color: var(--text-muted);
   margin: 14px 0 6px;
+  flex: 0 0 auto;
 }
-/* Pin the platform + credentials section titles at fixed offsets so
-   the same section title sits at the same vertical position on every card. */
 .section-title-platform {
-  margin-top: 4px;        /* tighter top, since header above is fixed-height */
+  margin-top: 4px;
 }
 .section-title-credentials {
   margin-top: 14px;
@@ -760,8 +787,25 @@ form input[type="password"]:focus {
   font-size: 13.5px;
   color: var(--text-soft);
   line-height: 1.6;
-  /* min-height so short lists don't make the card shorter than its neighbours */
-  min-height: 60px;
+  /* The credentials list grows to fill the remaining space so cards
+     in the same row end up the same height even when their content
+     lengths differ. */
+  flex: 1 1 auto;
+}
+.platform-list {
+  /* Platform list always has 3 items - give it a FIXED height (not just
+     min-height) so the "Credentials" section title sits at exactly the
+     same offset on every card. flex: 0 0 160px means the list takes
+     exactly 160px (it doesn't grow or shrink), which fits up to 6
+     wrapped lines at 13.5px / 1.6 line-height. If a platform item
+     needs more room, it overflows gracefully. */
+  flex: 0 0 160px;
+  overflow: hidden;
+}
+.credentials-list {
+  /* min-height so very short lists still give the card some height.
+     100px fits ~5 lines at 13.5px / 1.6 line-height. */
+  min-height: 100px;
 }
 .platform-list li, .credentials-list li { margin-bottom: 4px; }
 
@@ -776,6 +820,8 @@ form input[type="password"]:focus {
   font-size: 11px;
   font-weight: 600;
   margin-top: 6px;
+  align-self: flex-start;
+  max-width: 100%;
 }
 
 /* ============================================================
@@ -1172,7 +1218,7 @@ form input[type="password"]:focus {
   .verify-success-row { grid-template-columns: 1fr; }
   #verify-form { grid-template-columns: 1fr; }
   .candidate-list { grid-template-columns: 1fr; }
-  .candidates-grid { grid-template-columns: 1fr; }
+  /* .candidates-grid already set to 1 column at <=720px above */
 }
 
 /* ============================================================
@@ -1277,6 +1323,130 @@ form input[type="password"]:focus {
 
 /* Hide elements with .hidden (override) - keep !important from .hidden */
 .hidden { display: none !important; }
+
+/* ============================================================
+   ADMIN CANDIDATES TOOL (candidates tab, admin only)
+   ============================================================ */
+.add-candidate-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px 14px;
+  margin-bottom: 14px;
+}
+@media (max-width: 720px) {
+  .add-candidate-grid { grid-template-columns: 1fr; }
+}
+.add-candidate-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+.add-candidate-grid label.full-width {
+  grid-column: 1 / -1;
+}
+.add-candidate-grid input,
+.add-candidate-grid select,
+.add-candidate-grid textarea {
+  padding: 8px 10px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  font-family: inherit;
+  color: var(--text);
+  background: white;
+  transition: border-color 150ms ease;
+}
+.add-candidate-grid input:focus,
+.add-candidate-grid select:focus,
+.add-candidate-grid textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.15);
+}
+.add-candidate-grid textarea {
+  resize: vertical;
+  min-height: 60px;
+  font-family: inherit;
+  line-height: 1.5;
+}
+.add-candidate-grid .req {
+  color: var(--danger);
+  font-weight: 700;
+}
+.add-candidate-grid .field-hint {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-style: italic;
+}
+
+.add-candidate-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.add-candidate-status {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.add-candidate-status.success { color: var(--success); font-weight: 600; }
+.add-candidate-status.error { color: var(--danger); font-weight: 600; }
+
+.added-candidates-section {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--border);
+}
+.added-candidates-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.added-candidate-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+.added-candidate-row .added-candidate-name {
+  font-weight: 600;
+  color: var(--text);
+}
+.added-candidate-row .added-candidate-meta {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.added-candidate-row .added-candidate-remove {
+  margin-left: auto;
+  padding: 4px 10px;
+  font-size: 12px;
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid #fecaca;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 600;
+  transition: all 150ms ease;
+}
+.added-candidate-row .added-candidate-remove:hover {
+  background: var(--danger);
+  color: white;
+}
 
 /* ============================================================
    ADMIN TESTING PANEL (audit tab, admin only)
