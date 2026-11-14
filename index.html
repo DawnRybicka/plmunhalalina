@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HALALina - PLMun Transparent Voting System</title>
+  <meta name="description" content="HALALina: A Web-based Transparent Voting System using simulated blockchain technology for PLMun Student Council Elections." />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' fill='%2316a34a' rx='4'/><text x='12' y='17' font-size='14' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold'>H</text></svg>" />
+</head>
+<body>
+  <!-- ============================================================ -->
+  <!-- LOGIN PAGE                                                  -->
+  <!-- ============================================================ -->
+  <div id="login-page" class="login-page">
+    <div class="login-card">
+      <div class="login-brand">
+        <div class="brand-mark">H</div>
+        <div>
+          <h1>HALALina</h1>
+          <p class="brand-subtitle">PLMun Transparent Voting System</p>
+        </div>
+      </div>
+
+      <div class="login-tagline">
+        A Web-based Transparent Voting System using Simulated Blockchain Technology
+      </div>
+
+      <form id="login-form" autocomplete="off">
+        <label for="student-id">Student ID</label>
+        <input
+          id="student-id"
+          type="text"
+          inputmode="numeric"
+          pattern="23\d{6}"
+          maxlength="8"
+          placeholder="23XXXXXX"
+          required
+        />
+        <label for="student-pin">PIN</label>
+        <input
+          id="student-pin"
+          type="password"
+          inputmode="numeric"
+          pattern="\d{4}"
+          maxlength="4"
+          placeholder="4-digit PIN"
+          required
+        />
+        <button type="submit" class="btn btn-primary btn-block">Sign In</button>
+        <p id="login-error" class="form-error" hidden></p>
+      </form>
+
+      <div class="login-help">
+        <p><strong>Sample login credentials:</strong></p>
+        <ul id="sample-credentials"></ul>
+        <p class="login-note">
+          The Mock SIS contains 220 synthetic student records. PINs are 4-digit
+          codes generated for this demo. Voter identities are hashed with SHA-256
+          before being recorded on the blockchain, so the public ledger cannot
+          be reverse-engineered to identify voters.
+        </p>
+      </div>
+    </div>
+    <footer class="login-footer">
+      Capstone Project - Pamantasan ng Lungsod ng Muntinlupa (PLMun) - College of
+      Information Technology and Computer Studies (CITCS) - 2026
+    </footer>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- MAIN APP                                                    -->
+  <!-- ============================================================ -->
+  <div id="app" class="app hidden">
+    <!-- Top navigation bar -->
+    <header class="topbar">
+      <div class="topbar-brand">
+        <div class="brand-mark brand-mark-sm">H</div>
+        <div>
+          <span class="topbar-title">HALALina</span>
+          <span class="topbar-subtitle">PLMun Transparent Voting System</span>
+        </div>
+      </div>
+      <nav class="topbar-nav">
+        <a href="#vote" class="nav-link active" data-tab="vote">Vote</a>
+        <a href="#candidates" class="nav-link" data-tab="candidates">Candidates</a>
+        <a href="#audit" class="nav-link" data-tab="audit">Audit Trail &amp; Live Tally</a>
+        <a href="#verify" class="nav-link" data-tab="verify">Verify Vote</a>
+      </nav>
+      <div class="topbar-user">
+        <div class="user-info">
+          <div id="user-name" class="user-name"></div>
+          <div id="user-meta" class="user-meta"></div>
+        </div>
+        <button id="logout-btn" class="btn btn-outline btn-sm">Logout</button>
+      </div>
+    </header>
+
+    <!-- ===================== VOTING TAB ===================== -->
+    <main id="tab-vote" class="tab-content active">
+      <div class="page-header">
+        <h2>Voting Panel</h2>
+        <p>Cast your ballot for the PLMun University Student Council Election AY 2026-2027.
+           Your selections are encrypted client-side before being recorded on the
+           simulated blockchain. You will receive a cryptographic receipt to verify
+           your vote was counted.</p>
+      </div>
+
+      <!-- Election status banner -->
+      <div id="election-status" class="election-status"></div>
+
+      <!-- Voting alert (already voted) -->
+      <div id="vote-already-cast" class="callout callout-info hidden">
+        <h3>You have already voted.</h3>
+        <p>Each student may vote only once. You can still verify your receipt on the
+           <a href="#verify" data-tab-link="verify">Verify Vote</a> tab or view the
+           live tally on the <a href="#audit" data-tab-link="audit">Audit Trail</a> tab.</p>
+      </div>
+
+      <!-- Ballot -->
+      <div id="ballot-container"></div>
+
+      <!-- Submit -->
+      <div id="vote-actions" class="vote-actions hidden">
+        <button id="cast-vote-btn" class="btn btn-primary btn-lg" disabled>Cast My Vote</button>
+        <p class="vote-action-hint">
+          Select one (1) candidate per position before submitting. After voting,
+          you will receive a receipt hash that you can use to verify your vote.
+        </p>
+      </div>
+
+      <!-- Receipt modal -->
+      <div id="receipt-modal" class="modal hidden" aria-hidden="true">
+        <div class="modal-backdrop"></div>
+        <div class="modal-card">
+          <div class="modal-header">
+            <h3>Vote Receipt</h3>
+            <button class="modal-close" aria-label="Close">&times;</button>
+          </div>
+          <div class="modal-body" id="receipt-body">
+            <!-- populated dynamically -->
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-outline" id="receipt-copy-btn">Copy Receipt</button>
+            <button class="btn btn-primary" id="receipt-verify-btn">Verify Vote</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ===================== CANDIDATES TAB ===================== -->
+    <main id="tab-candidates" class="tab-content">
+      <div class="page-header">
+        <h2>Candidate Credibility</h2>
+        <p>Each candidate's profile, platform, credentials, and credibility scores
+           are verified by the PLMun COMELEC and Faculty Verification Committee.</p>
+      </div>
+      <div id="candidates-container" class="candidates-grid"></div>
+    </main>
+
+    <!-- ===================== AUDIT TRAIL TAB ===================== -->
+    <main id="tab-audit" class="tab-content">
+      <div class="page-header">
+        <h2>Audit Trail &amp; Live Tally</h2>
+        <p>Real-time anonymous tally of votes recorded on the simulated blockchain,
+           plus the chronological audit trail of all system activities. Voter identities
+           are SHA-256 hashed, so individual selections cannot be linked back to a student.</p>
+      </div>
+
+      <!-- Two-column layout: live tally + audit trail -->
+      <div class="audit-layout">
+        <!-- Live tally panel -->
+        <section class="audit-tally">
+          <div class="card">
+            <div class="card-header">
+              <h3>Live Tally</h3>
+              <span id="tally-update-time" class="badge badge-green"></span>
+            </div>
+            <div class="card-body">
+              <div class="stats-row">
+                <div class="stat-block">
+                  <span class="stat-label">Total Votes Cast</span>
+                  <span id="stat-total-votes" class="stat-value">0</span>
+                </div>
+                <div class="stat-block">
+                  <span class="stat-label">Eligible Voters</span>
+                  <span id="stat-eligible-voters" class="stat-value">0</span>
+                </div>
+                <div class="stat-block">
+                  <span class="stat-label">Turnout</span>
+                  <span id="stat-turnout" class="stat-value">0%</span>
+                </div>
+              </div>
+              <div id="tally-by-position"></div>
+              <div class="tally-footer">
+                <button id="refresh-tally" class="btn btn-outline btn-sm">Refresh Tally</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Audit trail panel -->
+        <section class="audit-trail">
+          <div class="card">
+            <div class="card-header">
+              <h3>Audit Trail</h3>
+              <span class="badge badge-green">Immutable</span>
+            </div>
+            <div class="card-body">
+              <div class="audit-filters">
+                <label>
+                  Filter by action:
+                  <select id="audit-filter-action">
+                    <option value="">All actions</option>
+                    <option value="LOGIN_SUCCESS">Login Success</option>
+                    <option value="LOGIN_FAILED">Login Failed</option>
+                    <option value="LOGIN_REJECTED_ALREADY_VOTED">Login Rejected</option>
+                    <option value="LOGOUT">Logout</option>
+                    <option value="VOTE_CAST">Vote Cast</option>
+                    <option value="VOTE_VERIFIED">Vote Verified</option>
+                    <option value="VOTE_NOT_FOUND">Vote Not Found</option>
+                    <option value="BLOCKCHAIN_VALID">Blockchain Valid</option>
+                    <option value="BLOCKCHAIN_INVALID">Blockchain Invalid</option>
+                    <option value="SYSTEM_ACTION">System Action</option>
+                  </select>
+                </label>
+                <label>
+                  Show:
+                  <select id="audit-filter-count">
+                    <option value="25">Last 25</option>
+                    <option value="50" selected>Last 50</option>
+                    <option value="100">Last 100</option>
+                    <option value="all">All</option>
+                  </select>
+                </label>
+                <button id="audit-validate-chain" class="btn btn-outline btn-sm">Validate Blockchain</button>
+                <button id="audit-clear-filters" class="btn btn-outline btn-sm">Clear</button>
+              </div>
+              <div id="audit-log-list" class="audit-log-list"></div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Blockchain inspection panel -->
+      <div class="card" style="margin-top: 20px;">
+        <div class="card-header">
+          <h3>Simulated Blockchain Ledger</h3>
+          <span id="blockchain-stats" class="badge"></span>
+        </div>
+        <div class="card-body">
+          <div id="blockchain-list" class="blockchain-list"></div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ===================== VERIFY VOTE TAB ===================== -->
+    <main id="tab-verify" class="tab-content">
+      <div class="page-header">
+        <h2>Verify Your Vote</h2>
+        <p>Enter the receipt code or transaction hash you received after voting.
+           The system will search the simulated blockchain ledger and confirm
+           whether your vote was recorded - without revealing your candidate
+           selections or your identity.</p>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <form id="verify-form" autocomplete="off">
+            <label for="verify-input">Receipt Code or Transaction Hash</label>
+            <input
+              id="verify-input"
+              type="text"
+              placeholder="XXXX-XXXX-XXXX-XXXX-XXXX  OR  64-char hex hash"
+              required
+            />
+            <button type="submit" class="btn btn-primary">Verify</button>
+            <p id="verify-result" class="verify-result"></p>
+          </form>
+          <div id="verify-success" class="callout callout-success hidden">
+            <!-- populated dynamically -->
+          </div>
+          <div id="verify-failure" class="callout callout-error hidden">
+            <!-- populated dynamically -->
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- App footer -->
+    <footer class="app-footer">
+      <p>HALALina v1.0 - Web-based Transparent Voting System (Simulated Blockchain) -
+         Pamantasan ng Lungsod ng Muntinlupa - 2026</p>
+      <p class="footer-links">
+          Simulated Blockchain | SHA-256 | AES-GCM E2EE | Data Privacy Act 2012 Compliant
+      </p>
+    </footer>
+  </div>
+
+  <!-- Toast notifications -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- ============================================================ -->
+  <!-- SCRIPTS                                                      -->
+  <!-- ============================================================ -->
+  <script src="js/crypto-utils.js"></script>
+  <script src="js/sis-data.js"></script>
+  <script src="js/candidates.js"></script>
+  <script src="js/voter-log.js"></script>
+  <script src="js/audit.js"></script>
+  <script src="js/blockchain.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/voting.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
