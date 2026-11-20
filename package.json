@@ -1,0 +1,21 @@
+{
+  "name": "halalina-voting-system",
+  "version": "1.0.0",
+  "description": "HALALina - Web-based Transparent Voting System for PLMun Student Council Elections. Cloudflare Pages + D1 edition.",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler pages dev public --local-protocol=http --port 8787",
+    "deploy": "wrangler pages deploy public --project-name halalina",
+    "db:create": "wrangler d1 create halalina-sis",
+    "db:schema:local": "wrangler d1 execute halalina-sis --file=schema.sql --local",
+    "db:seed:local": "wrangler d1 execute halalina-sis --file=seed.sql --local",
+    "db:schema:remote": "wrangler d1 execute halalina-sis --file=schema.sql --remote",
+    "db:seed:remote": "wrangler d1 execute halalina-sis --file=seed.sql --remote",
+    "db:reset:local": "wrangler d1 execute halalina-sis --command \"DELETE FROM MOCK_STUDENT_SIS; DELETE FROM VOTER_LOG; DELETE FROM AUDIT_TRAIL; DELETE FROM BLOCKCHAIN_BLOCKS; DELETE FROM BLOCKCHAIN_TRANSACTIONS; DELETE FROM CANDIDATE_PROFILE; DELETE FROM ADMIN_USERS; DELETE FROM ADDED_CANDIDATES;\" --local",
+    "secret:session": "wrangler pages secret put SESSION_SECRET",
+    "secret:election": "wrangler pages secret put ELECTION_KEY"
+  },
+  "devDependencies": {
+    "wrangler": "^4.164.0"
+  }
+}

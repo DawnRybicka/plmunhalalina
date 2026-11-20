@@ -1,0 +1,41 @@
+# =============================================================
+# HALALina - Cloudflare Pages configuration
+# =============================================================
+# This file configures Cloudflare Pages to:
+#   - Serve static files from /public
+#   - Run Pages Functions from /functions (serverless backend)
+#   - Bind to a Cloudflare D1 database named "halalina-sis"
+#
+# Deployment:
+#   1. Install wrangler:   npm install
+#   2. Create the D1 DB:   npx wrangler d1 create halalina-sis
+#       -> copy the database_id from the output into this file
+#   3. Apply the schema:   npx wrangler d1 execute halalina-sis --file=schema.sql --remote
+#   4. Seed the data:      npx wrangler d1 execute halalina-sis --file=seed.sql --remote
+#   5. Deploy:             npx wrangler pages deploy public --project-name halalina
+#
+# Or connect this folder to a GitHub repo and let Cloudflare Pages
+# auto-deploy on every push. See README.md for the full tutorial.
+# =============================================================
+
+name = "halalina-voting-system"
+compatibility_date = "2024-09-23"
+pages_build_output_dir = "public"
+
+# D1 database binding - the production database
+# Create this with: npx wrangler d1 create halalina-sis
+# Then paste the database_id below.
+[[d1_databases]]
+binding = "DB"
+database_name = "halalina-sis"
+database_id = "4d4299f6-bbee-4919-80f4-26af2317222e"
+
+# Environment variables (secrets - set via wrangler or the dashboard)
+# SESSION_SECRET: a long random string used to sign session cookies
+# ELECTION_KEY: the AES-GCM passphrase used to decrypt ballots for tally
+# Run: npx wrangler pages secret put SESSION_SECRET
+# Run: npx wrangler pages secret put ELECTION_KEY
+[vars]
+ELECTION_ID = "ELEC-2026-SSC"
+SALT = "HALALINA-PLMUN-2026-SIS-SALT"
+DIFFICULTY = "3"
